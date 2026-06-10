@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import RealTimeOnlineCounter from './components/RealTimeOnlineCounter';
 import Leaderboard from './components/Leaderboard';
-import { auth, db } from './lib/firebase'; // 💡 db 임포트 추가
+import { auth, db } from './lib/firebase'; // 💡 db 임포트 유지
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore'; // 💡 Firestore 내장 함수 추가
+import { doc, getDoc } from 'firebase/firestore'; // 💡 Firestore 내장 함수 유지
 import { getUserStats } from './lib/recordService';
 
 // 💡 10레벨 단위 뱃지 색상 테일윈드 클래스 반환 함수
@@ -87,7 +87,7 @@ export default function LandingPage() {
   const [systemCoreTime, setSystemCoreTime] = useState<string>('00:00:00');
   const [user, setUser] = useState<User | null>(null);
 
-  // 💡 홈 화면용 유저 디비 정보 상태 추가
+  // 💡 홈 화면용 유저 디비 정보 상태
   const [level, setLevel] = useState<number>(1);
   const [currentTitleId, setCurrentTitleId] = useState<string>('');
   const [dbDisplayName, setDbDisplayName] = useState<string>('');
@@ -119,7 +119,7 @@ export default function LandingPage() {
           });
         }
 
-        // 2. 💡 [추가] 실시간 레벨 및 장착 칭호 Firestore 연동 데이터 적재
+        // 2. 실시간 레벨 및 장착 칭호 Firestore 연동 데이터 적재
         const userDocRef = doc(db, 'users', currentUser.uid);
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
@@ -203,6 +203,7 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen bg-[#000000] text-zinc-100 font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight">
       
+      {/* 백그라운드 그리드 레이아웃 */}
       <div className="absolute inset-x-0 bottom-0 top-24 z-0 pointer-events-none select-none overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.04),transparent_45%)]" />
         <div 
@@ -217,11 +218,12 @@ export default function LandingPage() {
         />
       </div>
 
+      {/* 상단 네비게이션 바 */}
       <nav className="relative z-20 w-full bg-black/95 border-b border-zinc-900/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 flex justify-between items-center">
           
           <div className="flex items-center gap-3.5 group cursor-pointer">
-            <div className="w-9 h-9 rounded-lg bg-zinc-955 border border-zinc-800 flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.02)] group-hover:border-zinc-400 transition-all duration-300">
+            <div className="w-9 h-9 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.02)] group-hover:border-zinc-400 transition-all duration-300">
               <span className="font-mono text-sm font-black text-white tracking-tighter">L</span>
             </div>
             <div className="flex flex-col -space-y-1">
@@ -253,7 +255,6 @@ export default function LandingPage() {
 
             <div className="flex items-center gap-3 border-l border-zinc-800 pl-5">
               {user ? (
-                /* 💡 칭호 및 10레벨 단위 반응형 컬러 뱃지가 표출되는 개조 구역 */
                 <Link 
                   href="/profile" 
                   className="flex items-center gap-3 bg-zinc-950/90 border border-zinc-900 hover:border-zinc-700 pl-3.5 pr-2.5 py-1.5 rounded-xl text-zinc-300 hover:text-white transition-all font-sans text-xs tracking-tight shadow-md"
@@ -298,6 +299,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
+      {/* 메인 콘텐츠 영역 */}
       <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-16 pb-32">
         
         <div className="max-w-4xl mb-16 space-y-4">
@@ -318,6 +320,7 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           
+          {/* 테스트 뭉치 (좌측 카드 세션) */}
           <div className="lg:col-span-6 flex flex-col gap-5">
             {TEST_SUITE.map((test) => (
               <Link 
@@ -332,7 +335,7 @@ export default function LandingPage() {
                     <span className="font-mono text-[10px] font-black text-zinc-400 tracking-[0.15em] border-b border-zinc-900 pb-1 group-hover:text-zinc-300 transition-all">
                       {test.label}
                     </span>
-                    <div className="w-8 h-8 rounded-lg border border-zinc-800 bg-zinc-955 flex items-center justify-center group-hover:bg-white group-hover:border-white transition-all duration-300">
+                    <div className="w-8 h-8 rounded-lg border border-zinc-800 bg-zinc-950 flex items-center justify-center group-hover:bg-white group-hover:border-white transition-all duration-300">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="group-hover:text-black text-zinc-400 transition-colors">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                         <polyline points="12 5 19 12 12 19"></polyline>
@@ -348,10 +351,19 @@ export default function LandingPage() {
                   </p>
                 </div>
 
-                <div className="border-t border-zinc-900 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-[10px]">
-                  <div className="flex flex-col gap-1 text-zinc-500">
-                    <span>{t.standard}: <span className="text-zinc-300 font-bold group-hover:text-zinc-200">{test.stat}</span></span>
-                    <span>{t.myBest}: <span className="text-emerald-400 font-black tracking-wide">{test.myScore}</span></span>
+                {/* 🔥 [정밀 수정 구역]: 텍스트 겹침 방지 및 다이내믹 정렬 레이아웃 보정 */}
+                <div className="border-t border-zinc-900 pt-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4 font-mono text-[10px]">
+                  <div className="flex flex-col gap-1.5 text-zinc-500">
+                    <div className="flex items-center gap-1.5">
+                      <span className="opacity-70">{t.standard}:</span> 
+                      <span className="text-zinc-300 font-bold group-hover:text-zinc-200">{test.stat}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="opacity-70">{t.myBest}:</span> 
+                      <span className="text-emerald-400 font-black tracking-wide bg-emerald-500/5 px-1.5 py-0.5 rounded border border-emerald-500/10">
+                        {test.myScore}
+                      </span>
+                    </div>
                   </div>
                   <span className="text-[9.5px] font-black text-zinc-400 opacity-40 group-hover:opacity-100 group-hover:text-zinc-300 group-hover:translate-x-1 transition-all tracking-widest self-end sm:self-center">
                     {t.proceed}
@@ -361,12 +373,14 @@ export default function LandingPage() {
             ))}
           </div>
 
+          {/* 리더보드 (우측 세션) */}
           <div className="lg:col-span-6 flex flex-col justify-between bg-[#040404]/30 border border-zinc-900/80 rounded-2xl p-8 shadow-lg backdrop-blur-md">
             <Leaderboard lang={lang} />
           </div>
 
         </div>
 
+        {/* 하단 유저 방문자 지표 트래커 */}
         <div className="mt-12 bg-[#030303]/40 border border-zinc-900/80 p-5 rounded-2xl font-mono text-xs shadow-md max-w-sm">
           <div className="border-l border-zinc-800 pl-4">
             <p className="text-[9px] text-zinc-500 font-black uppercase tracking-wider mb-1">// {t.totalHits}</p>
@@ -378,6 +392,7 @@ export default function LandingPage() {
 
       </main>
 
+      {/* 푸터 영역 */}
       <footer className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 border-t border-zinc-900/80 flex justify-between items-center text-zinc-600 text-[9px] font-mono font-bold tracking-widest uppercase relative z-10">
         <div>LABGG METRICS ENGINE</div>
         <div className="text-zinc-500">LABGG.PRO © 2026</div>
