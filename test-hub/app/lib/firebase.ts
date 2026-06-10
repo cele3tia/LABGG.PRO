@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'; // 💡 1. 여기에 GoogleAuthProvider 추가
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -11,17 +11,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// 💡 데이터 안정성 확보를 위한 초기화 밸런싱 검증
 let app;
 
 if (typeof window !== 'undefined' || firebaseConfig.apiKey) {
-  // 1. 실제 브라우저 환경이거나 진짜 API Key가 존재할 때 (정상 서비스 레이어)
   if (!firebaseConfig.apiKey && typeof window !== 'undefined') {
     console.error("🚨 [LABGG ENGINE] Firebase API Key가 비어있습니다! Vercel 환경변수를 확인하세요.");
   }
   app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 } else {
-  // 2. Next.js 빌드 타임 엔진 스케일링 전용 (더미 레이어)
   app = initializeApp({ 
     apiKey: "dummy-key-for-build", 
     authDomain: "dummy.firebaseapp.com", 
@@ -31,5 +28,7 @@ if (typeof window !== 'undefined' || firebaseConfig.apiKey) {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider(); // 💡 2. 구글 로그인 공급자 인스턴스 생성
 
-export { auth, db };
+// 💡 3. 맨 아래 export에 googleProvider를 추가해서 외부에서 쓸 수 있게 차트를 열어줍니다.
+export { auth, db, googleProvider };
