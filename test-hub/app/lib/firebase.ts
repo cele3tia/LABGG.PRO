@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'; // 💡 1. 여기에 GoogleAuthProvider 추가
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'; 
 import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database'; // 💡 Realtime Database 임포트 추가
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -28,7 +29,8 @@ if (typeof window !== 'undefined' || firebaseConfig.apiKey) {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider(); // 💡 2. 구글 로그인 공급자 인스턴스 생성
+const database = getDatabase(app); // 💡 형님 엔진에 Realtime Database 인스턴스 적재
+const googleProvider = new GoogleAuthProvider(); 
 
-// 💡 3. 맨 아래 export에 googleProvider를 추가해서 외부에서 쓸 수 있게 차트를 열어줍니다.
-export { auth, db, googleProvider };
+// 💡 database까지 포함해서 바깥으로 짱짱하게 내보냅니다!
+export { auth, db, database, googleProvider };
