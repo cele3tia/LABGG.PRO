@@ -78,6 +78,11 @@ export default function CpsTestPage() {
 
   const resultStartTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 🛡️ 동일 주기 매크로 감지용 타임스탬프 및 간격 기록 레퍼런스
+  const lastClickTimeRef = useRef<number>(0);
+  const clickIntervalsRef = useRef<number[]>([]);
+
   const t = TRANSLATIONS[lang];
 
   useEffect(() => {
@@ -183,12 +188,18 @@ export default function CpsTestPage() {
   };
 
   const handleScreenClick = () => {
+    const now = performance.now();
+
     if (gameState === 'waiting') {
       setGameState('clicking');
       setClickCount(1);
       setTimeLeft(targetTime);
       setSaveStatus('');
       setXpNotice('');
+
+      // 테스트 시작 시 주기 측정 시스템 초기화
+      lastClickTimeRef.current = now;
+      clickIntervalsRef.current = [];
 
       const startTime = Date.now();
       timerRef.current = setInterval(() => {
@@ -206,6 +217,43 @@ export default function CpsTestPage() {
 
     } else if (gameState === 'clicking') {
       if (timeLeft > 0) {
+        
+        // -----------------------------------------------------------------
+        // 🔄 동일 주기(시간 간격) 일치 여부 실시간 검증 로직
+        // -----------------------------------------------------------------
+        const interval = now - lastClickTimeRef.current;
+        lastClickTimeRef.current = now;
+
+        // 최근 6개의 클릭 간격 저장 (큐 형태)
+        const updatedIntervals = [...clickIntervalsRef.current, interval].slice(-6);
+        clickIntervalsRef.current = updatedIntervals;
+
+        // 표본이 5개 이상 쌓였을 때부터 연속 검사 수행
+        if (updatedIntervals.length >= 5) {
+          let isMacroPeriod = true;
+          
+          for (let i = 1; i < updatedIntervals.length; i++) {
+            // 직전 클릭 간격과의 차이가 오차범위 2ms 이내로 소름 돋게 일정하다면 매크로
+            if (Math.abs(updatedIntervals[i] - updatedIntervals[i - 1]) > 2) {
+              isMacroPeriod = false;
+              break;
+            }
+          }
+
+          // 완벽히 일치하는 고정 주기 패턴 검출 시 즉시 차단 및 초기화
+          if (isMacroPeriod) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            setClickCount(0);
+            setTimeLeft(targetTime);
+            setGameState('waiting');
+            setSaveStatus('❌ 일정한 주기의 매크로 입력이 감지되었습니다.');
+            clickIntervalsRef.current = [];
+            lastClickTimeRef.current = 0;
+            return;
+          }
+        }
+        // -----------------------------------------------------------------
+
         setClickCount((prev) => prev + 1);
       }
     } else if (gameState === 'result') {
@@ -223,6 +271,8 @@ export default function CpsTestPage() {
     setSaveStatus('');
     setXpNotice('');
     setGameState('waiting');
+    lastClickTimeRef.current = 0;
+    clickIntervalsRef.current = [];
   };
 
   useEffect(() => {

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 
 type TestState = 'waiting' | 'ready' | 'click' | 'result' | 'foul' | 'all-done';
 type TotalCountType = 3 | 5 | 7 | 10;
@@ -12,6 +12,15 @@ type TotalCountType = 3 | 5 | 7 | 10;
 // 💡 홈/프로필 스펙과 완벽하게 일치하는 경험치 계수 공식
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
+};
+
+// 📊 기록의 들쭉날쭉함(분산도)을 측정하는 표준편차 계산 함수
+const getStandardDeviation = (scores: number[]): number => {
+  const n = scores.length;
+  if (n <= 1) return 0;
+  const mean = scores.reduce((a, b) => a + b, 0) / n;
+  const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
+  return Math.sqrt(variance);
 };
 
 const TRANSLATIONS = {
@@ -107,9 +116,36 @@ export default function ReactionTestPage() {
     };
   }, []);
 
-  // 💡 시각 반응 속도 전용 정산 및 연쇄 레벨업 처리 엔진
+  // 💡 시각 반응 속도 전용 정산 및 연쇄 레벨업 처리 엔진 (트랜잭션 버전)
   const saveFinalAverageAndProcessXp = async (avgScore: number) => {
     if (!auth.currentUser) return;
+
+    // -----------------------------------------------------------------
+    // [추가] 매크로 및 조작 데이터 자체 검증 필터
+    // -----------------------------------------------------------------
+    
+    // 1. 하한선 필터링 (인간 한계 미만 점수 컷)
+    if (avgScore < 100) {
+      setSaveStatus('❌ 비정상적인 평균 기록입니다.');
+      return;
+    }
+
+    // 2. 표준편차 필터링 (일정한 난수 주입식 고정 매크로 컷)
+    const stdDev = getStandardDeviation(scoreHistory);
+    if (totalRounds >= 3 && stdDev < 4) {
+      setSaveStatus('❌ 일정한 입력 패턴이 감지되었습니다.');
+      return;
+    }
+
+    // 3. 중복값 필터링 (완전히 동일한 숫자가 반복되는 조작 컷)
+    const uniqueScores = new Set(scoreHistory);
+    if (totalRounds >= 5 && uniqueScores.size <= 2) {
+      setSaveStatus('❌ 반복적인 고정 기록이 감지되었습니다.');
+      return;
+    }
+
+    // -----------------------------------------------------------------
+
     setSaveStatus(t.saving);
 
     const uid = auth.currentUser.uid;
@@ -119,13 +155,22 @@ export default function ReactionTestPage() {
     const earnedXp = Math.max(10, Math.floor(35000 / avgScore)) + (totalRounds * 10);
 
     try {
-      const docSnap = await getDoc(userDocRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const currentBest = data.reactionBest || 999999; // 기존 기록 없으면 무한대 설정
+      // 1. runTransaction으로 읽기와 쓰기를 하나의 트랜잭션으로 처리합니다.
+      const txResult = await runTransaction(db, async (transaction) => {
+        // [RULE] 모든 읽기 작업(Get)이 쓰기 작업보다 무조건 먼저 실행되어야 합니다.
+        const docSnap = await transaction.get(userDocRef);
+        
+        let currentLevel = 1;
+        let currentXp = 0;
+        let currentBest = 999999;
+        const isNewUser = !docSnap.exists();
 
-        let currentLevel = data.level || 1;
-        let currentXp = data.xp || 0;
+        if (!isNewUser) {
+          const data = docSnap.data()!;
+          currentLevel = data.level || 1;
+          currentXp = data.xp || 0;
+          currentBest = data.reactionBest || 999999;
+        }
 
         // 경험치 획득 및 누적 연쇄 레벨업 검증 알고리즘
         currentXp += earnedXp;
@@ -136,51 +181,52 @@ export default function ReactionTestPage() {
           isLeveledUp = true;
         }
 
-        const updateData: any = {
-          xp: currentXp,
-          level: currentLevel,
-          updatedAt: serverTimestamp()
+        const isNewBest = avgScore < currentBest;
+
+        // [RULE] 계산 완료 후 transaction 객체를 통해 데이터를 일괄 기록(Set/Update)합니다.
+        if (isNewUser) {
+          transaction.set(userDocRef, {
+            uid: uid,
+            displayName: auth.currentUser?.displayName || 'Anonymous',
+            photoURL: auth.currentUser?.photoURL || '',
+            reactionBest: avgScore,
+            level: currentLevel,
+            xp: currentXp,
+            updatedAt: serverTimestamp()
+          });
+        } else {
+          const updateData: any = {
+            xp: currentXp,
+            level: currentLevel,
+            updatedAt: serverTimestamp()
+          };
+          if (isNewBest) {
+            updateData.reactionBest = avgScore;
+          }
+          transaction.update(userDocRef, updateData);
+        }
+
+        // 트랜잭션이 성공하면 바깥으로 넘겨줄 결과값 리턴
+        return {
+          isLeveledUp,
+          currentLevel,
+          isNewBest: isNewBest || isNewUser
         };
+      });
 
-        let statusText = '';
-        // 반응속도는 낮을수록 신기록 🏆
-        if (avgScore < currentBest) {
-          updateData.reactionBest = avgScore;
-          setMyBestScore(avgScore);
-          statusText = t.saveSuccess;
-        }
-
-        await updateDoc(userDocRef, updateData);
-        
-        setXpNotice(`${t.xpEarned}${earnedXp} XP ${isLeveledUp ? `| ${t.levelUp} (Lv.${currentLevel})` : ''}`);
-        setSaveStatus(statusText);
-
-      } else {
-        // 도큐먼트가 존재하지 않는 신규 유저 초기 스케일링
-        let currentLevel = 1;
-        let currentXp = earnedXp;
-
-        while (currentXp >= getNextXpForLevel(currentLevel)) {
-          currentXp -= getNextXpForLevel(currentLevel);
-          currentLevel += 1;
-        }
-
-        await setDoc(userDocRef, {
-          uid: uid,
-          displayName: auth.currentUser.displayName || 'Anonymous',
-          photoURL: auth.currentUser.photoURL || '',
-          reactionBest: avgScore,
-          level: currentLevel,
-          xp: currentXp,
-          updatedAt: serverTimestamp()
-        });
-
+      // 2. 트랜잭션 완료 후 블록 외부에서 안전하게 리액트 UI 상태 변경 (네트워크 지연/재시도 시 UI 꼬임 방지)
+      if (txResult.isNewBest) {
         setMyBestScore(avgScore);
-        setXpNotice(`${t.xpEarned}${earnedXp} XP`);
         setSaveStatus(t.saveSuccess);
+      } else {
+        setSaveStatus('');
       }
+      
+      setXpNotice(`${t.xpEarned}${earnedXp} XP ${txResult.isLeveledUp ? `| ${t.levelUp} (Lv.${txResult.currentLevel})` : ''}`);
+
     } catch (error) {
-      console.error('반응속도 및 XP 저장 실패:', error);
+      console.error('반응속도 및 XP 저장 실패 (트랜잭션 에러):', error);
+      setSaveStatus('Error');
     }
   };
 
@@ -356,7 +402,6 @@ export default function ReactionTestPage() {
                 </p>
               </div>
 
-              {/* 스코어보드 및 경험치 누적 알림창 스택 레이아웃 */}
               <div className="flex flex-col items-center gap-2">
                 {saveStatus && (
                   <p className="text-xs font-sans font-bold text-amber-400 bg-black/40 px-4 py-1.5 rounded-full border border-amber-500/10 inline-block">
