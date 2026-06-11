@@ -9,9 +9,16 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 type TestState = 'waiting' | 'clicking' | 'result';
 type TargetTimeType = 3 | 5 | 7 | 10;
 
-// 💡 프로필/홈 화면과 완벽 매칭되는 경험치 레벨 곡선 공식
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
+};
+
+// 📊 클릭 주기 데이터의 표준편차를 구하는 함수
+const calculateStdDev = (intervals: number[]): number => {
+  if (intervals.length === 0) return 0;
+  const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  const variance = intervals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / intervals.length;
+  return Math.sqrt(variance);
 };
 
 const TRANSLATIONS = {
@@ -79,7 +86,7 @@ export default function CpsTestPage() {
   const resultStartTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // 🛡️ 동일 주기 매크로 감지용 타임스탬프 및 간격 기록 레퍼런스
+  // 🛡️ 매크로 패턴 정밀 분석용 레퍼런스
   const lastClickTimeRef = useRef<number>(0);
   const clickIntervalsRef = useRef<number[]>([]);
 
@@ -106,15 +113,12 @@ export default function CpsTestPage() {
     };
   }, []);
 
-  // 💡 CPS 정산 및 레벨업 시스템 빌드 처리 함수
   const saveCpsRecordAndProcessXp = async (finalCps: number) => {
     if (!auth.currentUser) return;
     setSaveStatus(t.saving);
 
     const uid = auth.currentUser.uid;
     const userDocRef = doc(db, 'users', uid);
-
-    // 판당 경험치 산출 공식: [CPS * 12] + [설정초 * 3]
     const earnedXp = Math.floor(finalCps * 12) + (targetTime * 3);
 
     try {
@@ -122,15 +126,11 @@ export default function CpsTestPage() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         const currentBest = data.cpsBest || 0;
-        
-        // 유저 레벨 및 경험치 가변 상태 가져오기
         let currentLevel = data.level || 1;
         let currentXp = data.xp || 0;
 
-        // 신규 경험치 가산
         currentXp += earnedXp;
 
-        // 누적 연쇄 레벨업 로직 루프 검증
         let isLeveledUp = false;
         while (currentXp >= getNextXpForLevel(currentLevel)) {
           currentXp -= getNextXpForLevel(currentLevel);
@@ -138,7 +138,6 @@ export default function CpsTestPage() {
           isLeveledUp = true;
         }
 
-        // 업데이트 데이터 패키지 바인딩
         const updateData: any = {
           xp: currentXp,
           level: currentLevel,
@@ -153,13 +152,10 @@ export default function CpsTestPage() {
         }
 
         await updateDoc(userDocRef, updateData);
-        
-        // 화면 하단 알림창에 획득 경험치 및 레벨업 트리거 문자열 매핑
         setXpNotice(`${t.xpEarned}${earnedXp} XP ${isLeveledUp ? `| ${t.levelUp} (Lv.${currentLevel})` : ''}`);
         setSaveStatus(statusText);
 
       } else {
-        // 첫 유저 등록인 경우 기본값 셋업 처리
         let currentLevel = 1;
         let currentXp = earnedXp;
 
@@ -187,8 +183,15 @@ export default function CpsTestPage() {
     }
   };
 
-  const handleScreenClick = () => {
+  // 🖱️ 매크로 우회 방지를 위해 마우스가 눌리는 React 이벤트 객체 수신
+  const handleScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const now = performance.now();
+
+    // 🛡️ 1차 방어선: 스크립트 강제 클릭 차단 (이벤트 조작 감지)
+    if (e.nativeEvent && e.nativeEvent.isTrusted === false) {
+      triggerMacroDetection();
+      return;
+    }
 
     if (gameState === 'waiting') {
       setGameState('clicking');
@@ -197,7 +200,6 @@ export default function CpsTestPage() {
       setSaveStatus('');
       setXpNotice('');
 
-      // 테스트 시작 시 주기 측정 시스템 초기화
       lastClickTimeRef.current = now;
       clickIntervalsRef.current = [];
 
@@ -218,41 +220,23 @@ export default function CpsTestPage() {
     } else if (gameState === 'clicking') {
       if (timeLeft > 0) {
         
-        // -----------------------------------------------------------------
-        // 🔄 동일 주기(시간 간격) 일치 여부 실시간 검증 로직
-        // -----------------------------------------------------------------
+        // 🛡️ 2차 방어선: 클릭 주기 통계학적 정밀 검증
         const interval = now - lastClickTimeRef.current;
         lastClickTimeRef.current = now;
 
-        // 최근 6개의 클릭 간격 저장 (큐 형태)
-        const updatedIntervals = [...clickIntervalsRef.current, interval].slice(-6);
+        // 최근 8개의 클릭 시간 간격을 추적
+        const updatedIntervals = [...clickIntervalsRef.current, interval].slice(-8);
         clickIntervalsRef.current = updatedIntervals;
 
-        // 표본이 5개 이상 쌓였을 때부터 연속 검사 수행
-        if (updatedIntervals.length >= 5) {
-          let isMacroPeriod = true;
+        if (updatedIntervals.length >= 6) {
+          const stdDev = calculateStdDev(updatedIntervals);
           
-          for (let i = 1; i < updatedIntervals.length; i++) {
-            // 직전 클릭 간격과의 차이가 오차범위 2ms 이내로 소름 돋게 일정하다면 매크로
-            if (Math.abs(updatedIntervals[i] - updatedIntervals[i - 1]) > 2) {
-              isMacroPeriod = false;
-              break;
-            }
-          }
-
-          // 완벽히 일치하는 고정 주기 패턴 검출 시 즉시 차단 및 초기화
-          if (isMacroPeriod) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            setClickCount(0);
-            setTimeLeft(targetTime);
-            setGameState('waiting');
-            setSaveStatus('❌ 일정한 주기의 매크로 입력이 감지되었습니다.');
-            clickIntervalsRef.current = [];
-            lastClickTimeRef.current = 0;
+          // 브라우저 딜레이 흔들림을 감안하더라도 표준편차가 4.5ms 미만이면 인간이 아님 (기계 확정)
+          if (stdDev < 4.5) {
+            triggerMacroDetection();
             return;
           }
         }
-        // -----------------------------------------------------------------
 
         setClickCount((prev) => prev + 1);
       }
@@ -262,6 +246,17 @@ export default function CpsTestPage() {
       }
       resetEntireTest();
     }
+  };
+
+  // ❌ 매크로 적발 시 상태 폭파 헬퍼 함수
+  const triggerMacroDetection = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setClickCount(0);
+    setTimeLeft(targetTime);
+    setGameState('waiting');
+    setSaveStatus('❌ 정밀 기계식 패턴이 감지되어 무효 처리되었습니다.');
+    clickIntervalsRef.current = [];
+    lastClickTimeRef.current = 0;
   };
 
   const resetEntireTest = () => {
@@ -384,7 +379,6 @@ export default function CpsTestPage() {
                 </p>
               </div>
               
-              {/* 알림 메시지 스택 출력 영역 */}
               <div className="flex flex-col items-center gap-2">
                 {saveStatus && (
                   <p className="text-xs font-sans font-bold text-amber-400 bg-black/40 px-4 py-1.5 rounded-full border border-amber-500/10 inline-block">
