@@ -6,12 +6,19 @@ import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
-// 🛑 'cheat' 상태 추가
 type TestState = 'waiting' | 'clicking' | 'result' | 'cheat';
 type TargetTimeType = 3 | 5 | 7 | 10;
 
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
+};
+
+// 📊 표준편차 계산 함수
+const calculateStdDev = (intervals: number[]): number => {
+  if (intervals.length === 0) return 0;
+  const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  const variance = intervals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / intervals.length;
+  return Math.sqrt(variance);
 };
 
 const TRANSLATIONS = {
@@ -36,9 +43,8 @@ const TRANSLATIONS = {
     historyTable: 'CLICK METRICS TABLE',
     totalClicks: 'TOTAL CLICKS',
     avgCps: 'AVG CPS',
-    restartAll: '처음부터 다시 하기',
-    cheatDetected: '부정행위 감지', // 👈 한국어 문구 고정
-    cheatSub: '비정상적인 기계식 입력 패턴이 확인되었습니다.'
+    cheatDetected: '부정행위 감지', // 👈 한국어 지정 문구
+    cheatSub: '비정상적인 기계식 입력 또는 제한(30 CPS) 초과 패턴이 확인되었습니다.'
   },
   en: {
     back: '← Back to Home',
@@ -61,9 +67,8 @@ const TRANSLATIONS = {
     historyTable: 'CLICK METRICS TABLE',
     totalClicks: 'TOTAL CLICKS',
     avgCps: 'AVG CPS',
-    restartAll: 'Restart Test',
-    cheatDetected: 'Cheating Detected', // 👈 영어 자율 반영
-    cheatSub: 'Automated mechanical input pattern detected.'
+    cheatDetected: 'Cheating Detected', // 👈 영어 지정 문구
+    cheatSub: 'Mechanical input detected or limit (30 CPS) exceeded.'
   }
 };
 
@@ -81,6 +86,7 @@ export default function CpsTestPage() {
   const [xpNotice, setXpNotice] = useState<string>('');
 
   const resultStartTimeRef = useRef<number>(0);
+  const gameStartTimeRef = useRef<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   const lastClickTimeRef = useRef<number>(0);
@@ -110,7 +116,7 @@ export default function CpsTestPage() {
   }, []);
 
   const saveCpsRecordAndProcessXp = async (finalCps: number) => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || gameState === 'cheat') return;
     setSaveStatus(t.saving);
 
     const uid = auth.currentUser.uid;
@@ -150,39 +156,16 @@ export default function CpsTestPage() {
         await updateDoc(userDocRef, updateData);
         setXpNotice(`${t.xpEarned}${earnedXp} XP ${isLeveledUp ? `| ${t.levelUp} (Lv.${currentLevel})` : ''}`);
         setSaveStatus(statusText);
-
-      } else {
-        let currentLevel = 1;
-        let currentXp = earnedXp;
-
-        while (currentXp >= getNextXpForLevel(currentLevel)) {
-          currentXp -= getNextXpForLevel(currentLevel);
-          currentLevel += 1;
-        }
-
-        await setDoc(userDocRef, {
-          uid: uid,
-          displayName: auth.currentUser.displayName || 'Anonymous',
-          photoURL: auth.currentUser.photoURL || '',
-          cpsBest: finalCps,
-          level: currentLevel,
-          xp: currentXp,
-          updatedAt: serverTimestamp()
-        });
-
-        setMyBestCps(finalCps);
-        setXpNotice(`${t.xpEarned}${earnedXp} XP`);
-        setSaveStatus(t.saveSuccess);
       }
     } catch (error) {
-      console.error('CPS 및 XP 서버 저장 오류:', error);
+      console.error('CPS 서버 저장 오류:', error);
     }
   };
 
   const handleScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const now = performance.now();
 
-    // 🛡️ 1차 실시간 스크립트 해킹 차단
+    // 🛡️ 스크립트 강제 조작 차단
     if (e.nativeEvent && e.nativeEvent.isTrusted === false) {
       triggerMacroDetection();
       return;
@@ -196,6 +179,7 @@ export default function CpsTestPage() {
       setXpNotice('');
 
       lastClickTimeRef.current = now;
+      gameStartTimeRef.current = now;
       clickIntervalsRef.current = [];
 
       const startTime = Date.now();
@@ -207,30 +191,38 @@ export default function CpsTestPage() {
 
         if (remaining <= 0) {
           if (timerRef.current) clearInterval(timerRef.current);
-          setGameState('result');
-          resultStartTimeRef.current = Date.now();
+          setGameState((prev) => {
+            if (prev === 'cheat') return 'cheat';
+            resultStartTimeRef.current = Date.now();
+            return 'result';
+          });
         }
       }, 100);
 
     } else if (gameState === 'clicking') {
       if (timeLeft > 0) {
-        
+        const elapsedSec = (now - gameStartTimeRef.current) / 1000;
+        const liveCps = clickCount / (elapsedSec || 0.01);
+
+        // 🚨 [조건 1] 실시간 CPS가 30 이상이면 즉시 무조건 핵 판정
+        if (elapsedSec > 0.2 && liveCps >= 30) {
+          triggerMacroDetection();
+          return;
+        }
+
         const interval = now - lastClickTimeRef.current;
         lastClickTimeRef.current = now;
 
-        // 🛡️ 오진 없는 정밀 탐지를 위해 수집 표본을 12개로 확장
-        const updatedIntervals = [...clickIntervalsRef.current, interval].slice(-12);
+        // 최근 10개의 클릭 간격 저장
+        const updatedIntervals = [...clickIntervalsRef.current, interval].slice(-10);
         clickIntervalsRef.current = updatedIntervals;
 
-        if (updatedIntervals.length >= 10) {
-          // 최댓값과 최솟값의 차이(Range) 분석
-          const maxInterval = Math.max(...updatedIntervals);
-          const minInterval = Math.min(...updatedIntervals);
-          const range = maxInterval - minInterval;
-          
-          // 사람은 지터/버터플라이 클릭 시 무조건 10번 중 한두 번 절기 때문에 편차가 7ms 이상 벌어집니다.
-          // 반면 오토마우스는 브라우저의 흔들림을 감안해도 10판 내내 간격 차이가 3.5ms 미만으로 지독하게 고정됩니다.
-          if (range < 3.5) {
+        // 🛡️ [조건 2] 기계식 패턴 정밀 탐지 (감도 강화)
+        if (updatedIntervals.length >= 8) {
+          const stdDev = calculateStdDev(updatedIntervals);
+          // 브라우저 지터를 감안해도 오토마우스는 표준편차가 10ms 이하로 지독하게 일정합니다.
+          // 사람은 아무리 일정하게 기계처럼 난타해도 표준편차가 15ms~35ms 이상 튑니다.
+          if (stdDev < 10.0) {
             triggerMacroDetection();
             return;
           }
@@ -239,20 +231,15 @@ export default function CpsTestPage() {
         setClickCount((prev) => prev + 1);
       }
     } else if (gameState === 'result' || gameState === 'cheat') {
-      // 0.5초 쿨타임 이후 클릭하면 재시작
-      if (Date.now() - resultStartTimeRef.current < 500) {
-        return;
-      }
+      if (Date.now() - resultStartTimeRef.current < 500) return;
       resetEntireTest();
     }
   };
 
   const triggerMacroDetection = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    setGameState('cheat'); // 🛑 핵 감지 전용 판정 상태로 변경
+    setGameState('cheat'); // 🛑 핵 감지 상태 돌입
     resultStartTimeRef.current = Date.now();
-    clickIntervalsRef.current = [];
-    lastClickTimeRef.current = 0;
   };
 
   const resetEntireTest = () => {
@@ -269,7 +256,11 @@ export default function CpsTestPage() {
   useEffect(() => {
     if (gameState === 'result') {
       const finalCpsCalculated = Number((clickCount / targetTime).toFixed(1));
-      saveCpsRecordAndProcessXp(finalCpsCalculated);
+      if (finalCpsCalculated >= 30) {
+        triggerMacroDetection();
+      } else {
+        saveCpsRecordAndProcessXp(finalCpsCalculated);
+      }
     }
   }, [gameState]);
 
@@ -277,12 +268,12 @@ export default function CpsTestPage() {
     ? targetTime - timeLeft > 0 ? Number((clickCount / (targetTime - timeLeft)).toFixed(1)) : 0
     : gameState === 'result' ? Number((clickCount / targetTime).toFixed(1)) : 0;
 
-  // 🎨 테마 색상 정의 (cheat 일 때 딥하고 강렬한 레드 보더 및 배경 적용)
+  // 🎨 배경 상태 스타일링 (cheat일 때 화면 전체 폭파 급 레드)
   const bgColors = {
     waiting: 'bg-zinc-950 border-zinc-900',
     clicking: 'bg-zinc-900 border-emerald-500/30',
     result: 'bg-zinc-950 border-zinc-850',
-    cheat: 'bg-red-950/30 border-red-500/60 animate-pulse text-red-100'
+    cheat: 'bg-red-950/40 border-red-500/80 text-red-100 animate-pulse'
   };
 
   return (
@@ -318,9 +309,7 @@ export default function CpsTestPage() {
                 disabled={gameState === 'clicking'}
                 onClick={() => { setTargetTime(time); setTimeLeft(time); setClickCount(0); setGameState('waiting'); }}
                 className={`w-8 h-8 rounded-lg font-mono text-xs font-black transition-all ${
-                  targetTime === time 
-                    ? 'bg-white text-black font-black' 
-                    : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
+                  targetTime === time ? 'bg-white text-black font-black' : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
                 }`}
               >
                 {time}s
@@ -336,20 +325,18 @@ export default function CpsTestPage() {
               {timeLeft.toFixed(1)} <span className="text-zinc-700 font-normal">/</span> {targetTime}s
             </span>
           </div>
-
           <div className="flex-1 bg-zinc-900 h-2 rounded-full overflow-hidden">
             <div 
               className={`h-full transition-all duration-100 ${gameState === 'cheat' ? 'bg-red-500' : 'bg-emerald-400'}`}
               style={{ width: `${(timeLeft / targetTime) * 100}%` }}
             />
           </div>
-
           <div className="min-w-[110px] text-right">
             <span className="text-zinc-400 font-bold">Live: <span className={`${gameState === 'cheat' ? 'text-red-500' : 'text-emerald-400'} font-black text-sm tabular-nums`}>{currentCps}{t.cps}</span></span>
           </div>
         </div>
 
-        {/* 대형 마우스 타격 감지판 */}
+        {/* 🛑 클릭 및 타격 감지 패널 */}
         <div 
           onMouseDown={handleScreenClick}
           className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-75 active:scale-[0.995] select-none ${bgColors[gameState]}`}
@@ -376,40 +363,29 @@ export default function CpsTestPage() {
                   {currentCps}<span className="text-2xl font-bold ml-1 text-zinc-600">{t.cps}</span>
                 </p>
               </div>
-              
               <div className="flex flex-col items-center gap-2">
-                {saveStatus && (
-                  <p className="text-xs font-sans font-bold text-amber-400 bg-black/40 px-4 py-1.5 rounded-full border border-amber-500/10 inline-block">
-                    {saveStatus}
-                  </p>
-                )}
-                {xpNotice && (
-                  <p className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 inline-block">
-                    {xpNotice}
-                  </p>
-                )}
+                {saveStatus && <p className="text-xs font-sans font-bold text-amber-400 bg-black/40 px-4 py-1.5 rounded-full border border-amber-500/10 inline-block">{saveStatus}</p>}
+                {xpNotice && <p className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 inline-block">{xpNotice}</p>}
               </div>
-              
               <p className="text-xs text-zinc-400 font-bold pt-1 animate-pulse">{t.retry}</p>
             </div>
           )}
 
-          {/* 🛑 부정행위 핵 감지 전용 UI 출력 단화 */}
+          {/* 🚨 부정행위 실시간 감지 UI */}
           {gameState === 'cheat' && (
             <div className="space-y-4">
-              <div className="w-12 h-12 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-2 text-red-500 text-xl font-bold animate-ping absolute" />
-              <div className="w-12 h-12 bg-red-950 border border-red-500/40 rounded-full flex items-center justify-center mx-auto mb-2 text-red-500 text-xl font-black relative">
+              <div className="w-14 h-14 bg-red-600 border border-red-400 rounded-full flex items-center justify-center mx-auto mb-2 text-white text-2xl font-black shadow-lg shadow-red-500/20">
                 !
               </div>
               <div>
-                <p className="text-3xl sm:text-4xl font-black text-red-500 tracking-tight uppercase">
+                <p className="text-4xl font-black text-red-500 tracking-tight uppercase">
                   {t.cheatDetected}
                 </p>
-                <p className="text-xs text-zinc-400 font-medium mt-2 max-w-sm mx-auto">
+                <p className="text-sm text-zinc-400 font-medium mt-2 max-w-md mx-auto leading-relaxed">
                   {t.cheatSub}
                 </p>
               </div>
-              <p className="text-xs text-red-400/70 font-mono font-bold pt-4 animate-pulse">{t.retry}</p>
+              <p className="text-xs text-red-400 font-mono font-bold pt-6 animate-pulse">{t.retry}</p>
             </div>
           )}
         </div>
@@ -418,20 +394,14 @@ export default function CpsTestPage() {
           <div className="text-[10px] font-mono font-black text-zinc-500 tracking-wider mb-4 pb-2 border-b border-zinc-900 uppercase">
             {t.historyTable}
           </div>
-          
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex justify-between items-center px-5 py-4 bg-zinc-950/40 border border-zinc-900/60 rounded-xl font-mono">
               <span className="font-bold text-zinc-500 text-xs tracking-wider">{t.totalClicks}</span>
-              <span className="text-xl font-black text-zinc-200 tabular-nums">
-                {clickCount} <span className="text-xs text-zinc-600 font-bold">{t.clicks}</span>
-              </span>
+              <span className="text-xl font-black text-zinc-200 tabular-nums">{clickCount} <span className="text-xs text-zinc-600 font-bold">{t.clicks}</span></span>
             </div>
-
             <div className="flex justify-between items-center px-5 py-4 bg-zinc-950/40 border border-zinc-900/60 rounded-xl font-mono">
               <span className="font-bold text-zinc-500 text-xs tracking-wider">{t.avgCps}</span>
-              <span className={`text-xl font-black ${gameState === 'cheat' ? 'text-red-500' : 'text-emerald-400'} tabular-nums`}>
-                {currentCps} <span className="text-xs text-zinc-600 font-bold">{t.cps}</span>
-              </span>
+              <span className={`text-xl font-black ${gameState === 'cheat' ? 'text-red-500' : 'text-emerald-400'} tabular-nums`}>{currentCps} <span className="text-xs text-zinc-600 font-bold">{t.cps}</span></span>
             </div>
           </div>
         </div>
@@ -439,7 +409,7 @@ export default function CpsTestPage() {
       </div>
 
       <div className="w-full max-w-5xl mx-auto text-center font-mono text-[9px] text-zinc-700 font-bold uppercase tracking-widest">
-        LABGG METRICS ENGINE v3.0
+        LABGG METRICS ENGINE v3.5
       </div>
 
     </div>

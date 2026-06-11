@@ -9,12 +9,10 @@ import { doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore
 type TestState = 'waiting' | 'ready' | 'click' | 'result' | 'foul' | 'all-done';
 type TotalCountType = 3 | 5 | 7 | 10;
 
-// 💡 홈/프로필 스펙과 완벽하게 일치하는 경험치 계수 공식
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
 };
 
-// 📊 기록의 들쭉날쭉함(분산도)을 측정하는 표준편차 계산 함수
 const getStandardDeviation = (scores: number[]): number => {
   const n = scores.length;
   if (n <= 1) return 0;
@@ -27,8 +25,8 @@ const TRANSLATIONS = {
   ko: {
     back: '← 홈으로',
     title: '시각 반응 속도 테스트',
-    desc: '붉은 화면이 초록색으로 변하는 순간 가장 빠르게 클릭하세요.',
-    waiting: '시작하려면 화면을 클릭하세요.',
+    desc: '붉은 화면이 초록색으로 변하는 순간 마우스를 눌렀다 떼세요.',
+    waiting: '시작하려면 화면을 클릭하세요 (누르고 떼기).',
     ready: 'ready...',
     click: 'CLICK!!!',
     foul: '부정출발! 초록색이 된 후에 눌러야 합니다. (화면을 눌러 이번 회차 재시도)',
@@ -52,8 +50,8 @@ const TRANSLATIONS = {
   en: {
     back: '← Back to Home',
     title: 'Visual Reaction Test',
-    desc: 'Click as fast as you can the moment the screen turns green.',
-    waiting: 'Click anywhere to start.',
+    desc: 'Click and release as fast as you can the moment the screen turns green.',
+    waiting: 'Click anywhere to start (Press & Release).',
     ready: 'Ready...',
     click: 'CLICK NOW!!!',
     foul: 'Too fast! You clicked before green. (Click to retry this round)',
@@ -92,6 +90,10 @@ export default function ReactionTestPage() {
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
+  
+  // 🛡️ 마우스 누르고 떼기 추적용 보안 레퍼런스
+  const hasPressedDuringGreenRef = useRef<boolean>(false);
+  const foulTriggeredThisClickRef = useRef<boolean>(false);
 
   const t = TRANSLATIONS[lang];
 
@@ -116,48 +118,34 @@ export default function ReactionTestPage() {
     };
   }, []);
 
-  // 💡 시각 반응 속도 전용 정산 및 연쇄 레벨업 처리 엔진 (트랜잭션 버전)
   const saveFinalAverageAndProcessXp = async (avgScore: number) => {
     if (!auth.currentUser) return;
 
-    // -----------------------------------------------------------------
-    // [추가] 매크로 및 조작 데이터 자체 검증 필터
-    // -----------------------------------------------------------------
-    
-    // 1. 하한선 필터링 (인간 한계 미만 점수 컷)
     if (avgScore < 100) {
       setSaveStatus('❌ 비정상적인 평균 기록입니다.');
       return;
     }
 
-    // 2. 표준편차 필터링 (일정한 난수 주입식 고정 매크로 컷)
     const stdDev = getStandardDeviation(scoreHistory);
     if (totalRounds >= 3 && stdDev < 4) {
       setSaveStatus('❌ 일정한 입력 패턴이 감지되었습니다.');
       return;
     }
 
-    // 3. 중복값 필터링 (완전히 동일한 숫자가 반복되는 조작 컷)
     const uniqueScores = new Set(scoreHistory);
     if (totalRounds >= 5 && uniqueScores.size <= 2) {
       setSaveStatus('❌ 반복적인 고정 기록이 감지되었습니다.');
       return;
     }
 
-    // -----------------------------------------------------------------
-
     setSaveStatus(t.saving);
 
     const uid = auth.currentUser.uid;
     const userDocRef = doc(db, 'users', uid);
-
-    // 반속 전용 경험치 공식: (35000 / 평균ms) + (총 라운드 * 10) | 최소 10 XP 보장
     const earnedXp = Math.max(10, Math.floor(35000 / avgScore)) + (totalRounds * 10);
 
     try {
-      // 1. runTransaction으로 읽기와 쓰기를 하나의 트랜잭션으로 처리합니다.
       const txResult = await runTransaction(db, async (transaction) => {
-        // [RULE] 모든 읽기 작업(Get)이 쓰기 작업보다 무조건 먼저 실행되어야 합니다.
         const docSnap = await transaction.get(userDocRef);
         
         let currentLevel = 1;
@@ -172,7 +160,6 @@ export default function ReactionTestPage() {
           currentBest = data.reactionBest || 999999;
         }
 
-        // 경험치 획득 및 누적 연쇄 레벨업 검증 알고리즘
         currentXp += earnedXp;
         let isLeveledUp = false;
         while (currentXp >= getNextXpForLevel(currentLevel)) {
@@ -183,7 +170,6 @@ export default function ReactionTestPage() {
 
         const isNewBest = avgScore < currentBest;
 
-        // [RULE] 계산 완료 후 transaction 객체를 통해 데이터를 일괄 기록(Set/Update)합니다.
         if (isNewUser) {
           transaction.set(userDocRef, {
             uid: uid,
@@ -206,31 +192,51 @@ export default function ReactionTestPage() {
           transaction.update(userDocRef, updateData);
         }
 
-        // 트랜잭션이 성공하면 바깥으로 넘겨줄 결과값 리턴
-        return {
-          isLeveledUp,
-          currentLevel,
-          isNewBest: isNewBest || isNewUser
-        };
+        return { isLeveledUp, currentLevel, isNewBest: isNewBest || isNewUser };
       });
 
-      // 2. 트랜잭션 완료 후 블록 외부에서 안전하게 리액트 UI 상태 변경 (네트워크 지연/재시도 시 UI 꼬임 방지)
       if (txResult.isNewBest) {
         setMyBestScore(avgScore);
         setSaveStatus(t.saveSuccess);
       } else {
         setSaveStatus('');
       }
-      
       setXpNotice(`${t.xpEarned}${earnedXp} XP ${txResult.isLeveledUp ? `| ${t.levelUp} (Lv.${txResult.currentLevel})` : ''}`);
 
     } catch (error) {
-      console.error('반응속도 및 XP 저장 실패 (트랜잭션 에러):', error);
+      console.error('반응속도 저장 실패:', error);
       setSaveStatus('Error');
     }
   };
 
-  const handleScreenClick = () => {
+  // 🔽 1단계: 마우스를 누르는 타이밍 감지
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
+
+    // 🚨 붉은 대기화면일 때 마우스를 누르는 즉시 "부정출발" 시동 (꾹 누르기 꼼수 차단)
+    if (gameState === 'ready') {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      setGameState('foul');
+      foulTriggeredThisClickRef.current = true; // 현재 누른 마우스의 Up 이벤트 씹기 위함
+      return;
+    }
+
+    // 초록 화면이 뜬 정상 상태에서 비로소 누름이 시작됨을 확인
+    if (gameState === 'click') {
+      hasPressedDuringGreenRef.current = true;
+    }
+  };
+
+  // 🔼 2단계: 마우스를 떼는 타이밍 감지 (반응 완성)
+  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
+
+    // 부정출발 처리로 인해 마우스를 뗄 때 연달아 다음판 시작을 방지
+    if (foulTriggeredThisClickRef.current) {
+      foulTriggeredThisClickRef.current = false;
+      return;
+    }
+
     if (gameState === 'waiting' || gameState === 'result' || gameState === 'foul') {
       if (gameState === 'result' && scoreHistory.length >= totalRounds) {
         setGameState('all-done');
@@ -243,6 +249,7 @@ export default function ReactionTestPage() {
       setGameState('ready');
       setSaveStatus('');
       setXpNotice('');
+      hasPressedDuringGreenRef.current = false;
       
       const randomDelay = Math.floor(Math.random() * 2000) + 2000;
       
@@ -251,22 +258,22 @@ export default function ReactionTestPage() {
         startTimeRef.current = performance.now();
       }, randomDelay);
 
-    } else if (gameState === 'ready') {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setGameState('foul');
-
     } else if (gameState === 'click') {
-      const endTime = performance.now();
-      const reactionMs = Math.round(endTime - startTimeRef.current);
-      
-      setResultTime(reactionMs);
-      const newHistory = [...scoreHistory, reactionMs];
-      setScoreHistory(newHistory);
-      
-      setGameState('result');
-      
-      if (newHistory.length < totalRounds) {
-        setCurrentRound(newHistory.length + 1);
+      // ⭕ 초록색 화면이 켜진 직후 정상적으로 누르고 "뗄 때" 타이머 기록 산출
+      if (hasPressedDuringGreenRef.current) {
+        const endTime = performance.now();
+        const reactionMs = Math.round(endTime - startTimeRef.current);
+        
+        setResultTime(reactionMs);
+        const newHistory = [...scoreHistory, reactionMs];
+        setScoreHistory(newHistory);
+        
+        setGameState('result');
+        hasPressedDuringGreenRef.current = false;
+        
+        if (newHistory.length < totalRounds) {
+          setCurrentRound(newHistory.length + 1);
+        }
       }
     }
   };
@@ -279,6 +286,8 @@ export default function ReactionTestPage() {
     setSaveStatus('');
     setXpNotice('');
     setGameState('waiting');
+    hasPressedDuringGreenRef.current = false;
+    foulTriggeredThisClickRef.current = false;
   };
 
   const bgColors = {
@@ -327,9 +336,7 @@ export default function ReactionTestPage() {
                 disabled={scoreHistory.length > 0 && gameState !== 'all-done'}
                 onClick={() => { setTotalRounds(count); resetEntireTest(); }}
                 className={`w-8 h-8 rounded-lg font-mono text-xs font-black transition-all ${
-                  totalRounds === count 
-                    ? 'bg-white text-black font-black' 
-                    : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
+                  totalRounds === count ? 'bg-white text-black font-black' : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
                 }`}
               >
                 {count}
@@ -345,21 +352,18 @@ export default function ReactionTestPage() {
               {scoreHistory.length} <span className="text-zinc-700 font-normal">/</span> {totalRounds}
             </span>
           </div>
-
           <div className="flex-1 bg-zinc-900 h-2 rounded-full overflow-hidden">
-            <div 
-              className="bg-emerald-400 h-full transition-all duration-300"
-              style={{ width: `${(scoreHistory.length / totalRounds) * 100}%` }}
-            />
+            <div className="bg-emerald-400 h-full transition-all duration-300" style={{ width: `${(scoreHistory.length / totalRounds) * 100}%` }} />
           </div>
-
           <div className="min-w-[90px] text-right">
             <span className="text-zinc-400 font-bold">Avg: <span className="text-emerald-400 font-black text-sm">{currentAvg}ms</span></span>
           </div>
         </div>
 
+        {/* 🛑 주축 타격 보드 - 마우스 이벤트를 세밀 분할 매핑 */}
         <div 
-          onClick={handleScreenClick}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
           className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-150 active:scale-[0.995] select-none ${bgColors[gameState]}`}
         >
           {gameState === 'waiting' && (
@@ -403,20 +407,14 @@ export default function ReactionTestPage() {
               </div>
 
               <div className="flex flex-col items-center gap-2">
-                {saveStatus && (
-                  <p className="text-xs font-sans font-bold text-amber-400 bg-black/40 px-4 py-1.5 rounded-full border border-amber-500/10 inline-block">
-                    {saveStatus}
-                  </p>
-                )}
-                {xpNotice && (
-                  <p className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 inline-block">
-                    {xpNotice}
-                  </p>
-                )}
+                {saveStatus && <p className="text-xs font-sans font-bold text-amber-400 bg-black/40 px-4 py-1.5 rounded-full border border-amber-500/10 inline-block">{saveStatus}</p>}
+                {xpNotice && <p className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 inline-block">{xpNotice}</p>}
               </div>
 
               <button 
                 onClick={(e) => { e.stopPropagation(); resetEntireTest(); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onMouseUp={(e) => e.stopPropagation()}
                 className="mt-1 px-5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-200 hover:bg-white hover:text-black transition-all"
               >
                 {t.restartAll}
@@ -439,9 +437,7 @@ export default function ReactionTestPage() {
                 <div 
                   key={roundNum}
                   className={`flex justify-between items-center px-4 py-3 rounded-xl border font-mono text-xs transition-colors ${
-                    currentRound === roundNum && gameState === 'ready'
-                      ? 'bg-zinc-900 border-zinc-700'
-                      : 'bg-zinc-950/40 border-zinc-900/60'
+                    currentRound === roundNum && gameState === 'ready' ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-950/40 border-zinc-900/60'
                   }`}
                 >
                   <span className="font-bold text-zinc-600 text-[10px]">#{String(roundNum).padStart(2, '0')}</span>
@@ -457,7 +453,7 @@ export default function ReactionTestPage() {
       </div>
 
       <div className="w-full max-w-5xl mx-auto text-center font-mono text-[9px] text-zinc-700 font-bold uppercase tracking-widest">
-        LABGG METRICS ENGINE v3.0
+        LABGG METRICS ENGINE v3.5
       </div>
 
     </div>
