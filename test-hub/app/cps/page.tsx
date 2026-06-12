@@ -19,7 +19,7 @@ const TRANSLATIONS = {
     title: 'CPS 클릭 속도 테스트',
     desc: '제한 시간 동안 화면을 최대한 빠르게 클릭하세요!',
     waiting: '테스트를 시작하려면 화면을 클릭하세요.',
-    clicking: '클릭하세요!!!',
+    clicking: '연타하세요!!!',
     result: '최종 CPS 기록',
     cps: 'CPS',
     clicks: 'Clicks',
@@ -30,7 +30,7 @@ const TRANSLATIONS = {
     loginAlert: '💡 로그인 후 완료하시면 레벨업 및 글로벌 리더보드에 등록됩니다.',
     myBest: '내 최고 CPS:',
     settingCount: '테스트 시간:',
-    progress: 'Time Left',
+    progress: '실시간 분석기',
     historyTable: 'REAL-TIME CLICK GRAPH (CPS TREND)',
     sec: '초',
     finalClicks: '총 클릭 횟수',
@@ -52,7 +52,7 @@ const TRANSLATIONS = {
     loginAlert: '💡 Sign in to level up and register your score on the leaderboard.',
     myBest: 'My Best CPS:',
     settingCount: 'Test Duration:',
-    progress: 'Time Left',
+    progress: 'Live Analyzer',
     historyTable: 'REAL-TIME CLICK GRAPH (CPS TREND)',
     sec: 's',
     finalClicks: 'Total Clicks',
@@ -72,12 +72,13 @@ export default function CpsTestPage() {
   const [totalTime, setTotalTime] = useState<TotalTimeType>(5);
   const [timeLeft, setTimeLeft] = useState<number>(5);
   const [clickCount, setClickCount] = useState<number>(0);
-  
-  // 실시간 CPS 트렌드 추적용 (초당 몇 번 클릭했는지 기록)
   const [cpsHistory, setCpsHistory] = useState<number[]>([]);
+  const [isBouncing, setIsBouncing] = useState<boolean>(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
   const clicksInCurrentSec = useRef<number>(0);
+  const lastSecRef = useRef<number>(0);
 
   const t = TRANSLATIONS[lang];
 
@@ -97,7 +98,7 @@ export default function CpsTestPage() {
     });
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) cancelAnimationFrame(timerRef.current);
       unsubscribe();
     };
   }, []);
@@ -106,19 +107,14 @@ export default function CpsTestPage() {
     if (!auth.currentUser) return;
 
     setSaveStatus(t.saving);
-
     const uid = auth.currentUser.uid;
     const userDocRef = doc(db, 'users', uid);
-    // CPS가 높을수록, 테스트 시간이 길수록 경험치 가중치 부여
     const earnedXp = Math.floor(finalCps * 20) + (totalTime * 15);
 
     try {
       const txResult = await runTransaction(db, async (transaction) => {
         const docSnap = await transaction.get(userDocRef);
-        
-        let currentLevel = 1;
-        let currentXp = 0;
-        let currentBest = 0;
+        let currentLevel = 1, currentXp = 0, currentBest = 0;
         const isNewUser = !docSnap.exists();
 
         if (!isNewUser) {
@@ -140,23 +136,13 @@ export default function CpsTestPage() {
 
         if (isNewUser) {
           transaction.set(userDocRef, {
-            uid: uid,
-            displayName: auth.currentUser?.displayName || 'Anonymous',
-            photoURL: auth.currentUser?.photoURL || '',
-            cpsBest: finalCps,
-            level: currentLevel,
-            xp: currentXp,
-            updatedAt: serverTimestamp()
+            uid, displayName: auth.currentUser?.displayName || 'Anonymous',
+            photoURL: auth.currentUser?.photoURL || '', cpsBest: finalCps,
+            level: currentLevel, xp: currentXp, updatedAt: serverTimestamp()
           });
         } else {
-          const updateData: any = {
-            xp: currentXp,
-            level: currentLevel,
-            updatedAt: serverTimestamp()
-          };
-          if (isNewBest) {
-            updateData.cpsBest = finalCps;
-          }
+          const updateData: any = { xp: currentXp, level: currentLevel, updatedAt: serverTimestamp() };
+          if (isNewBest) updateData.cpsBest = finalCps;
           transaction.update(userDocRef, updateData);
         }
 
@@ -170,10 +156,32 @@ export default function CpsTestPage() {
         setSaveStatus('');
       }
       setXpNotice(`${t.xpEarned}${earnedXp} XP ${txResult.isLeveledUp ? `| ${t.levelUp} (Lv.${txResult.currentLevel})` : ''}`);
-
     } catch (error) {
       console.error('CPS 기록 저장 실패:', error);
       setSaveStatus('Error');
+    }
+  };
+
+  // 60fps 기반의 부드러운 애니메이션 타이머 루프
+  const updateTimer = () => {
+    const now = performance.now();
+    const elapsed = (now - startTimeRef.current) / 1000;
+    const currentLeft = Math.max(0, totalTime - elapsed);
+    
+    setTimeLeft(currentLeft);
+
+    // 1초 단위 경과 체크하여 실시간 그래프 데이터 누적
+    const currentSecFloor = Math.floor(elapsed);
+    if (currentSecFloor > lastSecRef.current && currentSecFloor <= totalTime) {
+      setCpsHistory((prev) => [...prev, clicksInCurrentSec.current]);
+      clicksInCurrentSec.current = 0;
+      lastSecRef.current = currentSecFloor;
+    }
+
+    if (currentLeft > 0) {
+      timerRef.current = requestAnimationFrame(updateTimer);
+    } else {
+      setGameState('all-done');
     }
   };
 
@@ -181,29 +189,14 @@ export default function CpsTestPage() {
     setGameState('clicking');
     setClickCount(1);
     clicksInCurrentSec.current = 1;
-    setTimeLeft(totalTime);
-    setCpsHistory([]);
-
-    let localTimeLeft = totalTime;
-
-    timerRef.current = setInterval(() => {
-      localTimeLeft -= 1;
-      setTimeLeft(localTimeLeft);
-
-      // 1초간 누적된 클릭 수를 히스토리에 기록 후 초기화
-      setCpsHistory((prev) => [...prev, clicksInCurrentSec.current]);
-      clicksInCurrentSec.current = 0;
-
-      if (localTimeLeft <= 0) {
-        if (timerRef.current) clearInterval(timerRef.current);
-        setGameState('all-done');
-      }
-    }, 1000);
+    lastSecRef.current = 0;
+    startTimeRef.current = performance.now();
+    timerRef.current = requestAnimationFrame(updateTimer);
   };
 
-  // 종료 시점 실시간 수치 동기화 및 저장 처리
   useEffect(() => {
     if (gameState === 'all-done') {
+      if (timerRef.current) cancelAnimationFrame(timerRef.current);
       const finalCps = parseFloat((clickCount / totalTime).toFixed(2));
       saveFinalCpsAndProcessXp(finalCps);
     }
@@ -217,11 +210,15 @@ export default function CpsTestPage() {
     } else if (gameState === 'clicking') {
       setClickCount((prev) => prev + 1);
       clicksInCurrentSec.current += 1;
+      
+      // 클릭 시 고퀄리티 숫자 팝업 애니메이션 트리거
+      setIsBouncing(true);
+      setTimeout(() => setIsBouncing(false), 50);
     }
   };
 
   const resetEntireTest = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) cancelAnimationFrame(timerRef.current);
     setClickCount(0);
     clicksInCurrentSec.current = 0;
     setTimeLeft(totalTime);
@@ -231,26 +228,41 @@ export default function CpsTestPage() {
     setGameState('waiting');
   };
 
-  const bgColors = {
-    waiting: 'bg-zinc-950 border-zinc-900',
-    clicking: 'bg-cyan-950 border-cyan-500/50',
-    'all-done': 'bg-zinc-950 border-zinc-800'
+  // 실시간 현재 CPS 계산
+  const elapsedTime = totalTime - timeLeft;
+  const currentCps = clickCount > 0 && elapsedTime > 0
+    ? (clickCount / elapsedTime).toFixed(2)
+    : '0.00';
+
+  // 실시간 속도에 따른 랭크 평가 (우측 바 채우기용)
+  const getPaceRank = (cps: number) => {
+    const num = parseFloat(cps.toString());
+    if (num === 0) return { text: 'WAITING', color: 'text-zinc-600' };
+    if (num < 5) return { text: 'SLOW Turtle 🐢', color: 'text-zinc-400' };
+    if (num < 8) return { text: 'NORMAL Human 👤', color: 'text-emerald-500' };
+    if (num < 12) return { text: 'FAST Cheetah ⚡', color: 'text-amber-400' };
+    return { text: 'GOD CLICKER 🔥', color: 'text-red-500 animate-pulse' };
   };
 
-  const currentCps = clickCount > 0 && totalTime - timeLeft > 0
-    ? (clickCount / (totalTime - timeLeft)).toFixed(1)
-    : '0.0';
+  const paceRank = getPaceRank(parseFloat(currentCps));
+
+  const bgColors = {
+    waiting: 'bg-zinc-950 border-zinc-900',
+    clicking: 'bg-emerald-950/20 border-emerald-500/40 shadow-[inset_0_0_30px_rgba(16,185,129,0.05)]',
+    'all-done': 'bg-zinc-950 border-zinc-800'
+  };
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none">
       
+      {/* 상단 네비게이션 헤더 */}
       <div className="flex justify-between items-center w-full max-w-5xl mx-auto">
         <Link href="/" className="text-xs font-mono font-bold text-zinc-500 hover:text-white transition-colors">
           {t.back}
         </Link>
         <div className="font-mono text-xs text-zinc-500 flex items-center gap-2">
           <span>{t.myBest}</span>
-          <span className="text-cyan-400 font-black tracking-wide text-sm">
+          <span className="text-emerald-400 font-black tracking-wide text-sm">
             {myBestCps}{typeof myBestCps === 'number' ? ` ${t.cps}` : ''}
           </span>
         </div>
@@ -258,6 +270,7 @@ export default function CpsTestPage() {
 
       <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center my-4 space-y-5">
         
+        {/* 타이틀 및 세팅 바 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="font-mono text-[10px] font-black text-zinc-600 tracking-[0.15em] uppercase block mb-1">
@@ -284,29 +297,55 @@ export default function CpsTestPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-950 border border-zinc-900 px-4 py-3 rounded-xl flex items-center justify-between font-mono text-xs gap-4">
-          <div className="flex items-center gap-2 min-w-[130px]">
-            <span className="text-zinc-500 font-bold">{t.progress}:</span>
-            <span className="text-white font-black text-sm">
-              {timeLeft} <span className="text-zinc-700 font-normal">/</span> {totalTime}{t.sec}
-            </span>
+        {/* 🛠️ 실시간 하단 바 대개조 (시간 바 부드럽게 무빙 + 양옆 정보 최적화) */}
+        <div className="bg-zinc-950 border border-zinc-900 p-4 rounded-xl flex flex-col gap-3 font-mono text-xs">
+          <div className="flex items-center justify-between font-bold">
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-500">{t.progress}:</span>
+              <span className="text-white font-black text-sm tabular-nums">
+                {timeLeft.toFixed(2)}<span className="text-xs text-zinc-500 font-normal"> / {totalTime}s</span>
+              </span>
+            </div>
+            
+            {/* 실시간 랭킹 시스템 매핑 채우기 */}
+            <div className="text-right">
+              <span className="text-zinc-500">PACE RANK: </span>
+              <span className={`font-black tracking-wide text-sm ${paceRank.color}`}>{paceRank.text}</span>
+            </div>
           </div>
-          <div className="flex-1 bg-zinc-900 h-2 rounded-full overflow-hidden">
-            <div className="bg-cyan-400 h-full transition-all duration-100" style={{ width: `${(timeLeft / totalTime) * 100}%` }} />
+
+          {/* 🌊 초부드러운 무빙 타임 프로그레스 바 (에메랄드 색상 통일) */}
+          <div className="bg-zinc-900 h-2.5 rounded-full overflow-hidden">
+            <div 
+              className="bg-emerald-400 h-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
+              style={{ 
+                width: `${(timeLeft / totalTime) * 100}%`,
+                transition: gameState === 'clicking' ? 'none' : 'width 0.2s ease-out' // 게임 중엔 하드웨어 가속 다이렉트 렌더링
+              }} 
+            />
           </div>
-          <div className="min-w-[110px] text-right">
-            <span className="text-zinc-400 font-bold">Live: <span className="text-cyan-400 font-black text-sm">{currentCps} {t.cps}</span></span>
+
+          {/* 실시간 CPS 및 누적 정보 바 */}
+          <div className="flex justify-between items-center text-[11px] pt-1 border-t border-zinc-900 text-zinc-400">
+            <div>
+              LIVE CPS: <span className="text-emerald-400 font-black text-sm tabular-nums">{currentCps}</span>
+            </div>
+            <div>
+              TOTAL CLICKS: <span className="text-white font-black text-sm tabular-nums">{clickCount}</span>
+            </div>
           </div>
         </div>
 
-        {/* ⚡ 클릭 판정 코어 패널 */}
+        {/* ⚡ 클릭 판정 코어 패널 (고퀄리티 액티브 스케일 애니메이션 탑재) */}
         <div 
           onMouseDown={handleScreenMouseDown}
-          className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-75 active:scale-[0.99] select-none ${bgColors[gameState]}`}
+          className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer select-none transition-all duration-70 ${
+            isBouncing ? 'scale-[0.98] border-emerald-400 bg-emerald-500/10' : 'active:scale-[0.985]'
+          } ${bgColors[gameState]}`}
         >
           {gameState === 'waiting' && (
             <div className="space-y-2">
-              <p className="text-lg font-bold text-zinc-300">{t.waiting}</p>
+              <p className="text-lg font-bold text-zinc-300 animate-pulse">{t.waiting}</p>
               <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">{t.desc}</p>
               {!user && <p className="text-xs text-zinc-600 font-medium pt-2">{t.loginAlert}</p>}
             </div>
@@ -314,18 +353,20 @@ export default function CpsTestPage() {
 
           {gameState === 'clicking' && (
             <div className="space-y-2 pointer-events-none">
-              <p className="text-6xl font-black text-cyan-400 tracking-tighter tabular-nums animate-pulse">
+              <p className={`text-7xl font-black text-emerald-400 tracking-tighter tabular-nums transition-transform duration-75 ${
+                isBouncing ? 'scale-110 text-white' : 'scale-100'
+              }`}>
                 {clickCount}
               </p>
-              <p className="text-sm font-mono font-bold text-zinc-400 uppercase tracking-widest">{t.clicking}</p>
+              <p className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-[0.2em]">{t.clicking}</p>
             </div>
           )}
 
           {gameState === 'all-done' && (
             <div className="space-y-5">
               <div>
-                <p className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">{t.result}</p>
-                <p className="text-7xl font-black text-white tracking-tighter mt-1 tabular-nums">
+                <p className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">{t.result}</p>
+                <p className="text-7xl font-black text-white tracking-tighter mt-1 tabular-nums animate-bounce">
                   {(clickCount / totalTime).toFixed(2)}<span className="text-2xl font-bold ml-1 text-zinc-600">{t.cps}</span>
                 </p>
                 <p className="text-xs text-zinc-500 font-mono mt-1">{t.finalClicks}: {clickCount} Clicks</p>
@@ -339,7 +380,7 @@ export default function CpsTestPage() {
               <button 
                 onClick={(e) => { e.stopPropagation(); resetEntireTest(); }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="mt-1 px-5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-200 hover:bg-white hover:text-black transition-all"
+                className="mt-1 px-5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-200 hover:bg-white hover:text-black transition-all shadow-lg"
               >
                 {t.restartAll}
               </button>
@@ -358,18 +399,18 @@ export default function CpsTestPage() {
               const secNum = idx + 1;
               const secScore = cpsHistory[idx];
               const isRecorded = secScore !== undefined;
-              const isCurrent = gameState === 'clicking' && (totalTime - timeLeft) === idx;
+              const isCurrent = gameState === 'clicking' && Math.floor(totalTime - timeLeft) === idx;
               
               return (
                 <div 
                   key={secNum}
-                  className={`flex justify-between items-center px-4 py-3 rounded-xl border font-mono text-xs transition-colors ${
-                    isCurrent ? 'bg-zinc-900 border-cyan-700' : 'bg-zinc-950/40 border-zinc-900/60'
+                  className={`flex justify-between items-center px-4 py-3 rounded-xl border font-mono text-xs transition-all ${
+                    isCurrent ? 'bg-zinc-900 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)] scale-[1.02]' : 'bg-zinc-950/40 border-zinc-900/60'
                   }`}
                 >
                   <span className="font-bold text-zinc-600 text-[10px]">{secNum}{t.sec}</span>
-                  <span className={`font-black tracking-tight text-sm ${isRecorded ? 'text-cyan-400' : 'text-zinc-800'}`}>
-                    {isRecorded ? `${secScore} Clki` : '---'}
+                  <span className={`font-black tracking-tight text-sm ${isRecorded ? 'text-emerald-400' : 'text-zinc-800'}`}>
+                    {isRecorded ? `${secScore} Clicks` : '---'}
                   </span>
                 </div>
               );
