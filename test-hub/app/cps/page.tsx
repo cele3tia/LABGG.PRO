@@ -6,109 +6,78 @@ import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 
-type TestState = 'waiting' | 'ready' | 'click' | 'result' | 'foul' | 'all-done' | 'cheat';
-type TotalCountType = 3 | 5 | 7 | 10;
+type TestState = 'waiting' | 'clicking' | 'all-done';
+type TotalTimeType = 3 | 5 | 7 | 10;
 
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
 };
 
-const getStandardDeviation = (scores: number[]): number => {
-  const n = scores.length;
-  if (n <= 1) return 0;
-  const mean = scores.reduce((a, b) => a + b, 0) / n;
-  const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
-  return Math.sqrt(variance);
-};
-
 const TRANSLATIONS = {
   ko: {
     back: '← 홈으로',
-    title: '시각 반응 속도 테스트',
-    desc: '붉은 화면이 초록색으로 변하는 순간 가장 빠르게 클릭하세요.',
-    waiting: '시작하려면 화면을 클릭하세요.',
-    ready: 'ready...',
-    click: 'CLICK!!!',
-    foul: '부정출발! 예측 연타나 미리 누르기는 금지됩니다. (화면에서 손을 떼면 이번 회차 재시도)',
-    result: '이번 회차 기록',
-    ms: 'ms',
-    retry: '다음 회차 진행 (화면 클릭)',
+    title: 'CPS 클릭 속도 테스트',
+    desc: '제한 시간 동안 화면을 최대한 빠르게 클릭하세요!',
+    waiting: '테스트를 시작하려면 화면을 클릭하세요.',
+    clicking: '클릭하세요!!!',
+    result: '최종 CPS 기록',
+    cps: 'CPS',
+    clicks: 'Clicks',
     saving: '평균 기록 및 경험치 정산 중...',
-    saveSuccess: '최고 평균 기록 경신! 🏆',
+    saveSuccess: '최고 CPS 기록 경신! 🏆',
     xpEarned: '경험치 획득! +',
     levelUp: 'LEVEL UP! 🎉',
     loginAlert: '💡 로그인 후 완료하시면 레벨업 및 글로벌 리더보드에 등록됩니다.',
-    myBest: '내 최고 평균 기록:',
-    settingCount: '테스트 총 횟수:',
-    progress: 'Progress',
-    historyTable: 'HISTORY TABLE',
-    round: 'ROUND',
-    record: 'SCORE',
-    finalAvg: '최종 평균 속도',
-    restartAll: '처음부터 다시 하기',
-    cheatTitle: '안티 치트 보안 시스템 작동',
-    cheatPrefixPattern: '[매크로 감지] 기계적인 고정 일치 클릭 간격이 적발되었습니다. (연속 ',
-    cheatSuffixPattern: '회 일치)',
-    cheatRestart: '보안 잠금 초기화 및 다시 하기'
+    myBest: '내 최고 CPS:',
+    settingCount: '테스트 시간:',
+    progress: 'Time Left',
+    historyTable: 'REAL-TIME CLICK GRAPH (CPS TREND)',
+    sec: '초',
+    finalClicks: '총 클릭 횟수',
+    restartAll: '처음부터 다시 하기'
   },
   en: {
     back: '← Back to Home',
-    title: 'Visual Reaction Test',
-    desc: 'Click as fast as you can the moment the screen turns green.',
+    title: 'CPS Click Speed Test',
+    desc: 'Click as fast as you can within the time limit!',
     waiting: 'Click anywhere to start.',
-    ready: 'Ready...',
-    click: 'CLICK NOW!!!',
-    foul: 'Too fast! Prediction clicks or multi-clicking is disabled. (Release to retry)',
-    result: 'Round Score',
-    ms: 'ms',
-    retry: 'Next Round (Click Screen)',
-    saving: 'Saving average score & XP...',
+    clicking: 'CLICK NOW!!!',
+    result: 'Final CPS Score',
+    cps: 'CPS',
+    clicks: 'Clicks',
+    saving: 'Saving score & XP...',
     saveSuccess: 'New Personal Best! 🏆',
     xpEarned: 'XP Earned! +',
     levelUp: 'LEVEL UP! 🎉',
     loginAlert: '💡 Sign in to level up and register your score on the leaderboard.',
-    myBest: 'My Best Avg:',
-    settingCount: 'Total Rounds:',
-    progress: 'Progress',
-    historyTable: 'HISTORY TABLE',
-    round: 'ROUND',
-    record: 'SCORE',
-    finalAvg: 'Final Avg Speed',
-    restartAll: 'Restart Test',
-    cheatTitle: 'Anti-Cheat Security Triggered',
-    cheatPrefixPattern: '[Macro Detected] Mechanical interval consistency detected. (Consecutive: ',
-    cheatSuffixPattern: ' times)',
-    cheatRestart: 'Reset Security & Retry'
+    myBest: 'My Best CPS:',
+    settingCount: 'Test Duration:',
+    progress: 'Time Left',
+    historyTable: 'REAL-TIME CLICK GRAPH (CPS TREND)',
+    sec: 's',
+    finalClicks: 'Total Clicks',
+    restartAll: 'Restart Test'
   }
 };
 
-export default function ReactionTestPage() {
+export default function CpsTestPage() {
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [user, setUser] = useState<User | null>(null);
   
   const [gameState, setGameState] = useState<TestState>('waiting');
-  const [resultTime, setResultTime] = useState<number | null>(null);
-  const [myBestScore, setMyBestScore] = useState<number | string>('---');
+  const [myBestCps, setMyBestCps] = useState<number | string>('---');
   const [saveStatus, setSaveStatus] = useState<string>('');
   const [xpNotice, setXpNotice] = useState<string>('');
-  const [cheatReason, setCheatReason] = useState<string>('');
 
-  const [totalRounds, setTotalRounds] = useState<TotalCountType>(3);
-  const [currentRound, setCurrentRound] = useState<number>(1);
-  const [scoreHistory, setScoreHistory] = useState<number[]>([]);
-
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(0);
+  const [totalTime, setTotalTime] = useState<TotalTimeType>(5);
+  const [timeLeft, setTimeLeft] = useState<number>(5);
+  const [clickCount, setClickCount] = useState<number>(0);
   
-  // 🛡️ 박자 연타 빌런 원천 차단용 보안 실시간 감지 상태 레퍼런스
-  const isFoulLockedRef = useRef<boolean>(false); 
-  const isCapturedRef = useRef<boolean>(false); 
-  const currentRoundScoreRef = useRef<number | null>(null);
+  // 실시간 CPS 트렌드 추적용 (초당 몇 번 클릭했는지 기록)
+  const [cpsHistory, setCpsHistory] = useState<number[]>([]);
 
-  // 🛡️ 하드웨어 매크로 정밀 차단용 데이터 트래킹 레퍼런스 (CPS 배열 제거)
-  const lastClickTimeRef = useRef<number>(0);
-  const lastIntervalRef = useRef<number>(0);
-  const consecutiveSameIntervalsRef = useRef<number>(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const clicksInCurrentSec = useRef<number>(0);
 
   const t = TRANSLATIONS[lang];
 
@@ -121,43 +90,27 @@ export default function ReactionTestPage() {
       if (currentUser) {
         const userDocRef = doc(db, 'users', currentUser.uid);
         const docSnap = await getDoc(userDocRef);
-        if (docSnap.exists() && docSnap.data().reactionBest) {
-          setMyBestScore(docSnap.data().reactionBest);
+        if (docSnap.exists() && docSnap.data().cpsBest) {
+          setMyBestCps(docSnap.data().cpsBest);
         }
       }
     });
 
     return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       unsubscribe();
     };
   }, []);
 
-  const saveFinalAverageAndProcessXp = async (avgScore: number) => {
+  const saveFinalCpsAndProcessXp = async (finalCps: number) => {
     if (!auth.currentUser) return;
-
-    if (avgScore < 100) {
-      setSaveStatus('❌ 비정상적인 평균 기록입니다.');
-      return;
-    }
-
-    const stdDev = getStandardDeviation(scoreHistory);
-    if (totalRounds >= 3 && stdDev < 4) {
-      setSaveStatus('❌ 일정한 입력 패턴이 감지되었습니다.');
-      return;
-    }
-
-    const uniqueScores = new Set(scoreHistory);
-    if (totalRounds >= 5 && uniqueScores.size <= 2) {
-      setSaveStatus('❌ 반복적인 고정 기록이 감지되었습니다.');
-      return;
-    }
 
     setSaveStatus(t.saving);
 
     const uid = auth.currentUser.uid;
     const userDocRef = doc(db, 'users', uid);
-    const earnedXp = Math.max(10, Math.floor(35000 / avgScore)) + (totalRounds * 10);
+    // CPS가 높을수록, 테스트 시간이 길수록 경험치 가중치 부여
+    const earnedXp = Math.floor(finalCps * 20) + (totalTime * 15);
 
     try {
       const txResult = await runTransaction(db, async (transaction) => {
@@ -165,14 +118,14 @@ export default function ReactionTestPage() {
         
         let currentLevel = 1;
         let currentXp = 0;
-        let currentBest = 999999;
+        let currentBest = 0;
         const isNewUser = !docSnap.exists();
 
         if (!isNewUser) {
           const data = docSnap.data()!;
           currentLevel = data.level || 1;
           currentXp = data.xp || 0;
-          currentBest = data.reactionBest || 999999;
+          currentBest = data.cpsBest || 0;
         }
 
         currentXp += earnedXp;
@@ -183,14 +136,14 @@ export default function ReactionTestPage() {
           isLeveledUp = true;
         }
 
-        const isNewBest = avgScore < currentBest;
+        const isNewBest = finalCps > currentBest;
 
         if (isNewUser) {
           transaction.set(userDocRef, {
             uid: uid,
             displayName: auth.currentUser?.displayName || 'Anonymous',
             photoURL: auth.currentUser?.photoURL || '',
-            reactionBest: avgScore,
+            cpsBest: finalCps,
             level: currentLevel,
             xp: currentXp,
             updatedAt: serverTimestamp()
@@ -202,7 +155,7 @@ export default function ReactionTestPage() {
             updatedAt: serverTimestamp()
           };
           if (isNewBest) {
-            updateData.reactionBest = avgScore;
+            updateData.cpsBest = finalCps;
           }
           transaction.update(userDocRef, updateData);
         }
@@ -211,7 +164,7 @@ export default function ReactionTestPage() {
       });
 
       if (txResult.isNewBest) {
-        setMyBestScore(avgScore);
+        setMyBestCps(finalCps);
         setSaveStatus(t.saveSuccess);
       } else {
         setSaveStatus('');
@@ -219,161 +172,74 @@ export default function ReactionTestPage() {
       setXpNotice(`${t.xpEarned}${earnedXp} XP ${txResult.isLeveledUp ? `| ${t.levelUp} (Lv.${txResult.currentLevel})` : ''}`);
 
     } catch (error) {
-      console.error('반응속도 저장 실패:', error);
+      console.error('CPS 기록 저장 실패:', error);
       setSaveStatus('Error');
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
-    if (gameState === 'cheat') return;
+  const startCpsTest = () => {
+    setGameState('clicking');
+    setClickCount(1);
+    clicksInCurrentSec.current = 1;
+    setTimeLeft(totalTime);
+    setCpsHistory([]);
 
-    const now = performance.now();
-    
-    // -------------------------------------------------------------------------
-    // 🛡️ 매크로 주기 패턴 분석 검증 엔진 (CPS 30 제한 기능은 완전히 삭제됨)
-    // -------------------------------------------------------------------------
-    if (lastClickTimeRef.current > 0) {
-      const currentInterval = now - lastClickTimeRef.current;
+    let localTimeLeft = totalTime;
 
-      if (lastIntervalRef.current > 0) {
-        const isExactlySame = Math.round(currentInterval) === Math.round(lastIntervalRef.current);
+    timerRef.current = setInterval(() => {
+      localTimeLeft -= 1;
+      setTimeLeft(localTimeLeft);
 
-        if (isExactlySame) {
-          consecutiveSameIntervalsRef.current += 1;
-        } else {
-          consecutiveSameIntervalsRef.current = 0;
-        }
+      // 1초간 누적된 클릭 수를 히스토리에 기록 후 초기화
+      setCpsHistory((prev) => [...prev, clicksInCurrentSec.current]);
+      clicksInCurrentSec.current = 0;
 
-        // 5회 이상 완벽히 고정된 프레임 간격 탐지 시 차단 스크린 전환
-        if (consecutiveSameIntervalsRef.current >= 5) {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          setCheatReason(`${t.cheatPrefixPattern}${consecutiveSameIntervalsRef.current + 1}${t.cheatSuffixPattern}`);
-          setGameState('cheat');
-          return;
-        }
+      if (localTimeLeft <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        setGameState('all-done');
       }
-      lastIntervalRef.current = currentInterval;
-    }
-    lastClickTimeRef.current = now;
-    // -------------------------------------------------------------------------
-
-    if (gameState === 'ready') {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      isFoulLockedRef.current = true;
-      setGameState('foul');
-      return;
-    }
-
-    if (isFoulLockedRef.current) {
-      return;
-    }
-
-    if (gameState === 'click') {
-      if (isCapturedRef.current) return;
-      isCapturedRef.current = true;
-
-      const clickTime = performance.now();
-      const calcScore = Math.round(clickTime - startTimeRef.current);
-      
-      if (calcScore < 100) {
-        isFoulLockedRef.current = true;
-        setGameState('foul');
-      } else {
-        currentRoundScoreRef.current = calcScore;
-      }
-    }
+    }, 1000);
   };
 
-  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
-    if (gameState === 'cheat') return;
-
-    if (gameState === 'foul') {
-      return;
+  // 종료 시점 실시간 수치 동기화 및 저장 처리
+  useEffect(() => {
+    if (gameState === 'all-done') {
+      const finalCps = parseFloat((clickCount / totalTime).toFixed(2));
+      saveFinalCpsAndProcessXp(finalCps);
     }
+  }, [gameState]);
 
-    if (gameState === 'waiting' || gameState === 'result' || isFoulLockedRef.current) {
-      
-      if (isFoulLockedRef.current) {
-        isFoulLockedRef.current = false;
-        isCapturedRef.current = false;
-        currentRoundScoreRef.current = null;
-        setGameState('waiting');
-        return;
-      }
+  const handleScreenMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
 
-      if (gameState === 'result' && scoreHistory.length >= totalRounds) {
-        setGameState('all-done');
-        const sum = scoreHistory.reduce((a, b) => a + b, 0);
-        const finalAvg = Math.round(sum / totalRounds);
-        saveFinalAverageAndProcessXp(finalAvg);
-        return;
-      }
-
-      setGameState('ready');
-      setSaveStatus('');
-      setXpNotice('');
-      isFoulLockedRef.current = false;
-      isCapturedRef.current = false;
-      currentRoundScoreRef.current = null;
-      
-      const randomDelay = Math.floor(Math.random() * 2500) + 2000;
-      
-      timeoutRef.current = setTimeout(() => {
-        if (!isFoulLockedRef.current) {
-          setGameState('click');
-          startTimeRef.current = performance.now();
-        }
-      }, randomDelay);
-
-    } else if (gameState === 'click') {
-      if (currentRoundScoreRef.current !== null && !isFoulLockedRef.current) {
-        const finalScore = currentRoundScoreRef.current;
-        setResultTime(finalScore);
-        
-        const newHistory = [...scoreHistory, finalScore];
-        setScoreHistory(newHistory);
-        setGameState('result');
-        
-        if (newHistory.length < totalRounds) {
-          setCurrentRound(newHistory.length + 1);
-        }
-      }
+    if (gameState === 'waiting') {
+      startCpsTest();
+    } else if (gameState === 'clicking') {
+      setClickCount((prev) => prev + 1);
+      clicksInCurrentSec.current += 1;
     }
   };
 
   const resetEntireTest = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setScoreHistory([]);
-    setCurrentRound(1);
-    setResultTime(null);
+    if (timerRef.current) clearInterval(timerRef.current);
+    setClickCount(0);
+    clicksInCurrentSec.current = 0;
+    setTimeLeft(totalTime);
+    setCpsHistory([]);
     setSaveStatus('');
     setXpNotice('');
     setGameState('waiting');
-    isFoulLockedRef.current = false;
-    isCapturedRef.current = false;
-    currentRoundScoreRef.current = null;
-
-    lastClickTimeRef.current = 0;
-    lastIntervalRef.current = 0;
-    consecutiveSameIntervalsRef.current = 0;
-    setCheatReason('');
   };
 
   const bgColors = {
     waiting: 'bg-zinc-950 border-zinc-900',
-    ready: 'bg-red-600 border-red-500',
-    click: 'bg-emerald-500 border-emerald-400',
-    foul: 'bg-amber-600 border-amber-500',
-    result: 'bg-zinc-900 border-zinc-800',
-    'all-done': 'bg-zinc-950 border-zinc-800',
-    cheat: 'bg-red-950 border-red-900'
+    clicking: 'bg-cyan-950 border-cyan-500/50',
+    'all-done': 'bg-zinc-950 border-zinc-800'
   };
 
-  const currentAvg = scoreHistory.length > 0 
-    ? Math.round(scoreHistory.reduce((a, b) => a + b, 0) / scoreHistory.length)
-    : 0;
+  const currentCps = clickCount > 0 && totalTime - timeLeft > 0
+    ? (clickCount / (totalTime - timeLeft)).toFixed(1)
+    : '0.0';
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none">
@@ -384,8 +250,8 @@ export default function ReactionTestPage() {
         </Link>
         <div className="font-mono text-xs text-zinc-500 flex items-center gap-2">
           <span>{t.myBest}</span>
-          <span className="text-emerald-400 font-black tracking-wide text-sm">
-            {myBestScore}{typeof myBestScore === 'number' ? t.ms : ''}
+          <span className="text-cyan-400 font-black tracking-wide text-sm">
+            {myBestCps}{typeof myBestCps === 'number' ? ` ${t.cps}` : ''}
           </span>
         </div>
       </div>
@@ -402,96 +268,67 @@ export default function ReactionTestPage() {
 
           <div className="flex items-center gap-1 bg-zinc-950 border border-zinc-900 p-1 rounded-xl">
             <span className="text-[10px] font-mono text-zinc-500 px-2.5 font-bold">{t.settingCount}</span>
-            {([3, 5, 7, 10] as TotalCountType[]).map((count) => (
+            {([3, 5, 7, 10] as TotalTimeType[]).map((time) => (
               <button
-                key={count}
-                disabled={scoreHistory.length > 0 && gameState !== 'all-done'}
-                onClick={() => { setTotalRounds(count); resetEntireTest(); }}
-                className={`w-8 h-8 rounded-lg font-mono text-xs font-black transition-all ${
-                  totalRounds === count ? 'bg-white text-black font-black' : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
+                key={time}
+                disabled={gameState === 'clicking'}
+                onClick={(e) => { e.stopPropagation(); setTotalTime(time); setTimeLeft(time); resetEntireTest(); }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`w-10 h-8 rounded-lg font-mono text-xs font-black transition-all ${
+                  totalTime === time ? 'bg-white text-black font-black' : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
                 }`}
               >
-                {count}
+                {time}s
               </button>
             ))}
           </div>
         </div>
 
         <div className="bg-zinc-950 border border-zinc-900 px-4 py-3 rounded-xl flex items-center justify-between font-mono text-xs gap-4">
-          <div className="flex items-center gap-2 min-w-[110px]">
+          <div className="flex items-center gap-2 min-w-[130px]">
             <span className="text-zinc-500 font-bold">{t.progress}:</span>
             <span className="text-white font-black text-sm">
-              {scoreHistory.length} <span className="text-zinc-700 font-normal">/</span> {totalRounds}
+              {timeLeft} <span className="text-zinc-700 font-normal">/</span> {totalTime}{t.sec}
             </span>
           </div>
           <div className="flex-1 bg-zinc-900 h-2 rounded-full overflow-hidden">
-            <div className="bg-emerald-400 h-full transition-all duration-300" style={{ width: `${(scoreHistory.length / totalRounds) * 100}%` }} />
+            <div className="bg-cyan-400 h-full transition-all duration-100" style={{ width: `${(timeLeft / totalTime) * 100}%` }} />
           </div>
-          <div className="min-w-[90px] text-right">
-            <span className="text-zinc-400 font-bold">Avg: <span className="text-emerald-400 font-black text-sm">{currentAvg}ms</span></span>
+          <div className="min-w-[110px] text-right">
+            <span className="text-zinc-400 font-bold">Live: <span className="text-cyan-400 font-black text-sm">{currentCps} {t.cps}</span></span>
           </div>
         </div>
 
+        {/* ⚡ 클릭 판정 코어 패널 */}
         <div 
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-150 active:scale-[0.995] select-none ${bgColors[gameState]}`}
+          onMouseDown={handleScreenMouseDown}
+          className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-75 active:scale-[0.99] select-none ${bgColors[gameState]}`}
         >
           {gameState === 'waiting' && (
             <div className="space-y-2">
               <p className="text-lg font-bold text-zinc-300">{t.waiting}</p>
-              {!user && <p className="text-xs text-zinc-600 font-medium">{t.loginAlert}</p>}
+              <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">{t.desc}</p>
+              {!user && <p className="text-xs text-zinc-600 font-medium pt-2">{t.loginAlert}</p>}
             </div>
           )}
 
-          {gameState === 'ready' && (
-            <p className="text-4xl font-mono font-black text-white uppercase tracking-widest">{t.ready}</p>
-          )}
-
-          {gameState === 'click' && (
-            <p className="text-5xl font-black text-black scale-105 tracking-tighter">{t.click}</p>
-          )}
-
-          {gameState === 'foul' && (
-            <p className="text-sm font-bold text-white max-w-sm leading-relaxed">{t.foul}</p>
-          )}
-
-          {gameState === 'cheat' && (
-            <div className="space-y-4 max-w-md">
-              <p className="text-2xl font-mono font-black text-red-500 uppercase tracking-widest animate-pulse">{t.cheatTitle}</p>
-              <p className="text-xs text-red-300/80 font-mono font-bold leading-relaxed bg-black/40 p-4 border border-red-500/20 rounded-xl text-left">
-                {cheatReason}
+          {gameState === 'clicking' && (
+            <div className="space-y-2 pointer-events-none">
+              <p className="text-6xl font-black text-cyan-400 tracking-tighter tabular-nums animate-pulse">
+                {clickCount}
               </p>
-              <button 
-                onClick={(e) => { e.stopPropagation(); resetEntireTest(); }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-                className="mt-2 px-5 py-2.5 bg-red-700 border border-red-600 hover:bg-red-600 text-xs font-bold rounded-xl text-white transition-all shadow-md active:scale-95"
-              >
-                {t.cheatRestart}
-              </button>
-            </div>
-          )}
-
-          {gameState === 'result' && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-[11px] font-mono font-bold text-zinc-500 uppercase tracking-wider">{t.result} ({scoreHistory.length}/{totalRounds})</p>
-                <p className="text-6xl font-black text-emerald-400 tracking-tighter mt-1 tabular-nums">
-                  {resultTime}<span className="text-2xl font-bold ml-1 text-zinc-600">{t.ms}</span>
-                </p>
-              </div>
-              <p className="text-xs text-zinc-400 font-bold pt-1 animate-pulse">{t.retry}</p>
+              <p className="text-sm font-mono font-bold text-zinc-400 uppercase tracking-widest">{t.clicking}</p>
             </div>
           )}
 
           {gameState === 'all-done' && (
             <div className="space-y-5">
               <div>
-                <p className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest">{t.finalAvg}</p>
+                <p className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">{t.result}</p>
                 <p className="text-7xl font-black text-white tracking-tighter mt-1 tabular-nums">
-                  {currentAvg}<span className="text-2xl font-bold ml-1 text-zinc-600">{t.ms}</span>
+                  {(clickCount / totalTime).toFixed(2)}<span className="text-2xl font-bold ml-1 text-zinc-600">{t.cps}</span>
                 </p>
+                <p className="text-xs text-zinc-500 font-mono mt-1">{t.finalClicks}: {clickCount} Clicks</p>
               </div>
 
               <div className="flex flex-col items-center gap-2">
@@ -502,7 +339,6 @@ export default function ReactionTestPage() {
               <button 
                 onClick={(e) => { e.stopPropagation(); resetEntireTest(); }}
                 onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
                 className="mt-1 px-5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-200 hover:bg-white hover:text-black transition-all"
               >
                 {t.restartAll}
@@ -511,33 +347,38 @@ export default function ReactionTestPage() {
           )}
         </div>
 
+        {/* 실시간 클릭 속도 그래프 보드 */}
         <div className="bg-zinc-950 border border-zinc-900 rounded-xl p-5">
           <div className="text-[10px] font-mono font-black text-zinc-500 tracking-wider mb-4 pb-2 border-b border-zinc-900 uppercase">
             {t.historyTable}
           </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {Array.from({ length: totalRounds }).map((_, idx) => {
-              const roundNum = idx + 1;
-              const hasScore = scoreHistory[roundNum - 1] !== undefined;
+            {Array.from({ length: totalTime }).map((_, idx) => {
+              const secNum = idx + 1;
+              const secScore = cpsHistory[idx];
+              const isRecorded = secScore !== undefined;
+              const isCurrent = gameState === 'clicking' && (totalTime - timeLeft) === idx;
               
               return (
                 <div 
-                  key={roundNum}
+                  key={secNum}
                   className={`flex justify-between items-center px-4 py-3 rounded-xl border font-mono text-xs transition-colors ${
-                    currentRound === roundNum && gameState === 'ready' ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-950/40 border-zinc-900/60'
+                    isCurrent ? 'bg-zinc-900 border-cyan-700' : 'bg-zinc-950/40 border-zinc-900/60'
                   }`}
                 >
-                  <span className="font-bold text-zinc-600 text-[10px]">#{String(roundNum).padStart(2, '0')}</span>
-                  <span className={`font-black tracking-tight text-sm ${hasScore ? 'text-zinc-200' : 'text-zinc-800'}`}>
-                    {hasScore ? `${scoreHistory[roundNum - 1]}ms` : '---'}
+                  <span className="font-bold text-zinc-600 text-[10px]">{secNum}{t.sec}</span>
+                  <span className={`font-black tracking-tight text-sm ${isRecorded ? 'text-cyan-400' : 'text-zinc-800'}`}>
+                    {isRecorded ? `${secScore} Clki` : '---'}
                   </span>
                 </div>
               );
             })}
           </div>
         </div>
+
       </div>
+
     </div>
   );
 }
