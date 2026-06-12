@@ -25,11 +25,11 @@ const TRANSLATIONS = {
   ko: {
     back: '← 홈으로',
     title: '시각 반응 속도 테스트',
-    desc: '붉은 화면이 초록색으로 변하는 순간 마우스를 눌렀다 떼세요.',
-    waiting: '시작하려면 화면을 클릭하세요 (누르고 떼기).',
+    desc: '붉은 화면이 초록색으로 변하는 순간 가장 빠르게 클릭하세요.',
+    waiting: '시작하려면 화면을 클릭하세요.',
     ready: 'ready...',
     click: 'CLICK!!!',
-    foul: '부정출발! 초록색이 된 후에 눌러야 합니다. (화면을 눌러 이번 회차 재시도)',
+    foul: '부정출발! 예측 연타나 미리 누르기는 금지됩니다. (화면에서 손을 떼면 이번 회차 재시도)',
     result: '이번 회차 기록',
     ms: 'ms',
     retry: '다음 회차 진행 (화면 클릭)',
@@ -50,11 +50,11 @@ const TRANSLATIONS = {
   en: {
     back: '← Back to Home',
     title: 'Visual Reaction Test',
-    desc: 'Click and release as fast as you can the moment the screen turns green.',
-    waiting: 'Click anywhere to start (Press & Release).',
+    desc: 'Click as fast as you can the moment the screen turns green.',
+    waiting: 'Click anywhere to start.',
     ready: 'Ready...',
     click: 'CLICK NOW!!!',
-    foul: 'Too fast! You clicked before green. (Click to retry this round)',
+    foul: 'Too fast! Prediction clicks or multi-clicking is disabled. (Release to retry)',
     result: 'Round Score',
     ms: 'ms',
     retry: 'Next Round (Click Screen)',
@@ -91,9 +91,9 @@ export default function ReactionTestPage() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   
-  // 🛡️ 마우스 누르고 떼기 추적용 보안 레퍼런스
-  const hasPressedDuringGreenRef = useRef<boolean>(false);
-  const foulTriggeredThisClickRef = useRef<boolean>(false);
+  // 🛡️ 박자 연타 빌런 원천 차단용 보안 실시간 감지 상태
+  const isFoulLockedRef = useRef<boolean>(false); 
+  const currentRoundScoreRef = useRef<number | null>(null);
 
   const t = TRANSLATIONS[lang];
 
@@ -209,35 +209,59 @@ export default function ReactionTestPage() {
     }
   };
 
-  // 🔽 1단계: 마우스를 누르는 타이밍 감지
+  // 🔽 1단계: 마우스를 누르는 순간 (기록 판정의 핵심축)
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
 
-    // 🚨 붉은 대기화면일 때 마우스를 누르는 즉시 "부정출발" 시동 (꾹 누르기 꼼수 차단)
+    // 1. 빨간색(ready) 화면일 때 누르면 예외 없이 "부정출발 락"을 걸어버림
     if (gameState === 'ready') {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      isFoulLockedRef.current = true;
       setGameState('foul');
-      foulTriggeredThisClickRef.current = true; // 현재 누른 마우스의 Up 이벤트 씹기 위함
       return;
     }
 
-    // 초록 화면이 뜬 정상 상태에서 비로소 누름이 시작됨을 확인
+    // 2. 이미 부정출발 락이 걸린 상태에서 연타 중이라면 무시
+    if (isFoulLockedRef.current) {
+      return;
+    }
+
+    // 3. 정상 초록색 화면에서 정석대로 마우스를 딱 누른 경우에만 실시간 시간 기록 계산
     if (gameState === 'click') {
-      hasPressedDuringGreenRef.current = true;
+      const clickTime = performance.now();
+      const calcScore = Math.round(clickTime - startTimeRef.current);
+      
+      // 인간 최고 한계선(대략 100ms) 미만은 예측 클릭이나 박자 연타로 간주하여 foul 우회 차단
+      if (calcScore < 100) {
+        isFoulLockedRef.current = true;
+        setGameState('foul');
+      } else {
+        currentRoundScoreRef.current = calcScore;
+      }
     }
   };
 
-  // 🔼 2단계: 마우스를 떼는 타이밍 감지 (반응 완성)
+  // 🔼 2단계: 마우스에서 손을 떼는 순간 (화면 전환 및 데이터 히스토리 반영)
   const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
 
-    // 부정출발 처리로 인해 마우스를 뗄 때 연달아 다음판 시작을 방지
-    if (foulTriggeredThisClickRef.current) {
-      foulTriggeredThisClickRef.current = false;
+    // 부정출발 상태에서 손을 뗄 때는 아무 일도 안 함 (화면 클릭 유지)
+    if (gameState === 'foul') {
+      // 대기 상태로 다시 마우스를 누를 수 있도록 준비는 릴리즈해 둠
       return;
     }
 
-    if (gameState === 'waiting' || gameState === 'result' || gameState === 'foul') {
+    // 대기, 결과 확인, 올클리어 화면 등 일반 상태일 때 뗄 때 다음 스텝 진행
+    if (gameState === 'waiting' || gameState === 'result' || isFoulLockedRef.current) {
+      
+      // 만약 부정출발 낙인이 찍힌 상태에서 뗀 거라면 이번 라운드 재시도 처리
+      if (isFoulLockedRef.current) {
+        isFoulLockedRef.current = false;
+        currentRoundScoreRef.current = null;
+        setGameState('waiting');
+        return;
+      }
+
       if (gameState === 'result' && scoreHistory.length >= totalRounds) {
         setGameState('all-done');
         const sum = scoreHistory.reduce((a, b) => a + b, 0);
@@ -246,30 +270,32 @@ export default function ReactionTestPage() {
         return;
       }
 
+      // 정상적인 판 시작
       setGameState('ready');
       setSaveStatus('');
       setXpNotice('');
-      hasPressedDuringGreenRef.current = false;
+      isFoulLockedRef.current = false;
+      currentRoundScoreRef.current = null;
       
-      const randomDelay = Math.floor(Math.random() * 2000) + 2000;
+      const randomDelay = Math.floor(Math.random() * 2500) + 2000; // 지연 난수도 미세 확장 (2.0s ~ 4.5s)
       
       timeoutRef.current = setTimeout(() => {
-        setGameState('click');
-        startTimeRef.current = performance.now();
+        // 타이머 시작 직전에 이미 연타 빌런짓을 해서 락이 걸려있는지 체크
+        if (!isFoulLockedRef.current) {
+          setGameState('click');
+          startTimeRef.current = performance.now();
+        }
       }, randomDelay);
 
     } else if (gameState === 'click') {
-      // ⭕ 초록색 화면이 켜진 직후 정상적으로 누르고 "뗄 때" 타이머 기록 산출
-      if (hasPressedDuringGreenRef.current) {
-        const endTime = performance.now();
-        const reactionMs = Math.round(endTime - startTimeRef.current);
+      // 초록색 화면에서 마우스를 뗐을 때, 누른 시점의 정상적인 점수가 저장되어 있다면 결과 셋업
+      if (currentRoundScoreRef.current !== null && !isFoulLockedRef.current) {
+        const finalScore = currentRoundScoreRef.current;
+        setResultTime(finalScore);
         
-        setResultTime(reactionMs);
-        const newHistory = [...scoreHistory, reactionMs];
+        const newHistory = [...scoreHistory, finalScore];
         setScoreHistory(newHistory);
-        
         setGameState('result');
-        hasPressedDuringGreenRef.current = false;
         
         if (newHistory.length < totalRounds) {
           setCurrentRound(newHistory.length + 1);
@@ -286,8 +312,8 @@ export default function ReactionTestPage() {
     setSaveStatus('');
     setXpNotice('');
     setGameState('waiting');
-    hasPressedDuringGreenRef.current = false;
-    foulTriggeredThisClickRef.current = false;
+    isFoulLockedRef.current = false;
+    currentRoundScoreRef.current = null;
   };
 
   const bgColors = {
@@ -360,7 +386,7 @@ export default function ReactionTestPage() {
           </div>
         </div>
 
-        {/* 🛑 주축 타격 보드 - 마우스 이벤트를 세밀 분할 매핑 */}
+        {/* 🛡️ 꼼수 원천봉쇄용 마우스 액션 영역 */}
         <div 
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
@@ -453,7 +479,7 @@ export default function ReactionTestPage() {
       </div>
 
       <div className="w-full max-w-5xl mx-auto text-center font-mono text-[9px] text-zinc-700 font-bold uppercase tracking-widest">
-        LABGG METRICS ENGINE v3.5
+        LABGG METRICS ENGINE v3.6
       </div>
 
     </div>
