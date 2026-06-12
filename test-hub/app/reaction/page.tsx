@@ -6,19 +6,11 @@ import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 
-type TestState = 'waiting' | 'ready' | 'click' | 'result' | 'foul' | 'all-done' | 'cheat';
+type TestState = 'waiting' | 'ready' | 'click' | 'result' | 'foul' | 'all-done';
 type TotalCountType = 3 | 5 | 7 | 10;
 
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
-};
-
-const getStandardDeviation = (scores: number[]): number => {
-  const n = scores.length;
-  if (n <= 1) return 0;
-  const mean = scores.reduce((a, b) => a + b, 0) / n;
-  const variance = scores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / n;
-  return Math.sqrt(variance);
 };
 
 const TRANSLATIONS = {
@@ -29,7 +21,7 @@ const TRANSLATIONS = {
     waiting: '시작하려면 화면을 클릭하세요.',
     ready: 'ready...',
     click: 'CLICK!!!',
-    foul: '부정출발! 예측 연타나 미리 누르기는 금지됩니다. (화면에서 손을 떼면 이번 회차 재시도)',
+    foul: '부정출발! 너무 빨랐습니다. (화면을 다시 클릭하면 이번 회차 재시도)',
     result: '이번 회차 기록',
     ms: 'ms',
     retry: '다음 회차 진행 (화면 클릭)',
@@ -45,12 +37,7 @@ const TRANSLATIONS = {
     round: 'ROUND',
     record: 'SCORE',
     finalAvg: '최종 평균 속도',
-    restartAll: '처음부터 다시 하기',
-    cheatTitle: '안티 치트 보안 시스템 작동',
-    cheatPrefixCps: '[비정상 연타] 실시간 클릭 속도가 너무 빠릅니다. (CPS: ',
-    cheatPrefixPattern: '[매크로 감지] 기계적인 고정 일치 클릭 간격이 적발되었습니다. (연속 ',
-    cheatSuffixPattern: '회 일치)',
-    cheatRestart: '보안 잠금 초기화 및 다시 하기'
+    restartAll: '처음부터 다시 하기'
   },
   en: {
     back: '← Back to Home',
@@ -59,7 +46,7 @@ const TRANSLATIONS = {
     waiting: 'Click anywhere to start.',
     ready: 'Ready...',
     click: 'CLICK NOW!!!',
-    foul: 'Too fast! Prediction clicks or multi-clicking is disabled. (Release to retry)',
+    foul: 'Too early! (Click the screen to retry this round)',
     result: 'Round Score',
     ms: 'ms',
     retry: 'Next Round (Click Screen)',
@@ -75,12 +62,7 @@ const TRANSLATIONS = {
     round: 'ROUND',
     record: 'SCORE',
     finalAvg: 'Final Avg Speed',
-    restartAll: 'Restart Test',
-    cheatTitle: 'Anti-Cheat Security Triggered',
-    cheatPrefixCps: '[Abnormal CPS] Click speed is too fast. (CPS: ',
-    cheatPrefixPattern: '[Macro Detected] Mechanical interval consistency detected. (Consecutive: ',
-    cheatSuffixPattern: ' times)',
-    cheatRestart: 'Reset Security & Retry'
+    restartAll: 'Restart Test'
   }
 };
 
@@ -93,7 +75,6 @@ export default function ReactionTestPage() {
   const [myBestScore, setMyBestScore] = useState<number | string>('---');
   const [saveStatus, setSaveStatus] = useState<string>('');
   const [xpNotice, setXpNotice] = useState<string>('');
-  const [cheatReason, setCheatReason] = useState<string>('');
 
   const [totalRounds, setTotalRounds] = useState<TotalCountType>(3);
   const [currentRound, setCurrentRound] = useState<number>(1);
@@ -101,17 +82,6 @@ export default function ReactionTestPage() {
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
-  
-  // 🛡️ 박자 연타 빌런 원천 차단용 보안 실시간 감지 상태 레퍼런스
-  const isFoulLockedRef = useRef<boolean>(false); 
-  const isCapturedRef = useRef<boolean>(false); 
-  const currentRoundScoreRef = useRef<number | null>(null);
-
-  // 🛡️ 오토마우스 및 하드웨어 매크로 정밀 차단용 데이터 트래킹 레퍼런스
-  const clickTimestamps = useRef<number[]>([]);
-  const lastClickTimeRef = useRef<number>(0);
-  const lastIntervalRef = useRef<number>(0);
-  const consecutiveSameIntervalsRef = useRef<number>(0);
 
   const t = TRANSLATIONS[lang];
 
@@ -138,23 +108,6 @@ export default function ReactionTestPage() {
 
   const saveFinalAverageAndProcessXp = async (avgScore: number) => {
     if (!auth.currentUser) return;
-
-    if (avgScore < 100) {
-      setSaveStatus('❌ 비정상적인 평균 기록입니다.');
-      return;
-    }
-
-    const stdDev = getStandardDeviation(scoreHistory);
-    if (totalRounds >= 3 && stdDev < 4) {
-      setSaveStatus('❌ 일정한 입력 패턴이 감지되었습니다.');
-      return;
-    }
-
-    const uniqueScores = new Set(scoreHistory);
-    if (totalRounds >= 5 && uniqueScores.size <= 2) {
-      setSaveStatus('❌ 반복적인 고정 기록이 감지되었습니다.');
-      return;
-    }
 
     setSaveStatus(t.saving);
 
@@ -227,150 +180,60 @@ export default function ReactionTestPage() {
     }
   };
 
-  // 🔽 1단계: 마우스를 누르는 순간 (기록 판정 축 + 실시간 하이퍼 CPS 및 기계 간격 치트 디텍터 결합)
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
-    if (gameState === 'cheat') return;
-
-    // -------------------------------------------------------------------------
-    // 🛡️ 실시간 고성능 CPS & 매크로 주기 패턴 분석 검증 엔진 코드 주입
-    // -------------------------------------------------------------------------
-    const now = performance.now();
-    clickTimestamps.current.push(now);
+  const startNextRound = () => {
+    setGameState('ready');
+    setSaveStatus('');
+    setXpNotice('');
     
-    // 최근 1초 범위 바깥의 구형 로그 청소 및 계산
-    const oneSecondAgo = now - 1000;
-    clickTimestamps.current = clickTimestamps.current.filter(t => t > oneSecondAgo);
-    const liveCps = clickTimestamps.current.length;
+    const randomDelay = Math.floor(Math.random() * 2500) + 2000; // 2.0초 ~ 4.5초 난수 생성
+    
+    timeoutRef.current = setTimeout(() => {
+      setGameState('click');
+      startTimeRef.current = performance.now();
+    }, randomDelay);
+  };
 
-    // 초당 30클릭 임계값 초과 차단 (광클 프로그램 및 마우스 휠 바인딩 제어)
-    if (liveCps > 30) {
+  // 🎯 마우스를 누르는 순간 모든 상태 전환 및 측정을 "단 한 번에" 완벽 처리
+  const handleScreenMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
+
+    // 1. 대기 화면이나 부정출발 상태에서 클릭하면 즉시 타이머 시작하며 재시도
+    if (gameState === 'waiting' || gameState === 'foul') {
+      startNextRound();
+    } 
+    // 2. 빨간색 화면(ready)일 때 누르면 예외 없이 즉시 부정출발(foul) 처리
+    else if (gameState === 'ready') {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      setCheatReason(`${t.cheatPrefixCps}${liveCps})`);
-      setGameState('cheat');
-      return;
-    }
-
-    // 밀리초(ms) 오차 범위 내 고정 클릭 인프라 분석 (하드웨어 하이퍼 매크로 및 오토마우스 검출)
-    if (lastClickTimeRef.current > 0) {
-      const currentInterval = now - lastClickTimeRef.current;
-
-      if (lastIntervalRef.current > 0) {
-        const isExactlySame = Math.round(currentInterval) === Math.round(lastIntervalRef.current);
-
-        if (isExactlySame) {
-          consecutiveSameIntervalsRef.current += 1;
-        } else {
-          consecutiveSameIntervalsRef.current = 0;
-        }
-
-        // 5회 이상 완벽히 고정된 프레임 간격 탐지 시 차단 스크린 전환
-        if (consecutiveSameIntervalsRef.current >= 5) {
-          if (timeoutRef.current) clearTimeout(timeoutRef.current);
-          setCheatReason(`${t.cheatPrefixPattern}${consecutiveSameIntervalsRef.current + 1}${t.cheatSuffixPattern}`);
-          setGameState('cheat');
-          return;
-        }
-      }
-      lastIntervalRef.current = currentInterval;
-    }
-    lastClickTimeRef.current = now;
-    // -------------------------------------------------------------------------
-
-    // 1. 빨간색(ready) 화면일 때 누르면 예외 없이 "부정출발 락"을 걸어버림
-    if (gameState === 'ready') {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      isFoulLockedRef.current = true;
       setGameState('foul');
-      return;
-    }
-
-    // 2. 이미 부정출발 락이 걸린 상태에서 연타 중이라면 무시
-    if (isFoulLockedRef.current) {
-      return;
-    }
-
-    // 3. 정상 초록색 화면에서 정석대로 마우스를 딱 누른 경우에만 실시간 시간 기록 계산
-    if (gameState === 'click') {
-      // 대량 다중 난타 유저 점수 변조 가드: 이미 첫 단추가 눌렸다면 뒤이은 이벤트는 단절 처리
-      if (isCapturedRef.current) return;
-      isCapturedRef.current = true;
-
+    } 
+    // 3. 초록색 화면(click)에서 정상 클릭 완료한 경우
+    else if (gameState === 'click') {
       const clickTime = performance.now();
       const calcScore = Math.round(clickTime - startTimeRef.current);
       
-      // 인간 최고 한계선(대략 100ms) 미만은 예측 클릭이나 박자 연타로 간주하여 foul 우회 차단
+      // 인간 한계선 미만 예측 입력인 경우 부정출발 처리
       if (calcScore < 100) {
-        isFoulLockedRef.current = true;
         setGameState('foul');
       } else {
-        currentRoundScoreRef.current = calcScore;
-      }
-    }
-  };
-
-  // 🔼 2단계: 마우스에서 손을 떼는 순간 (화면 전환 및 데이터 히스토리 반영)
-  const handleMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
-    if (gameState === 'cheat') return;
-
-    // 부정출발 상태에서 손을 뗄 때는 아무 일도 안 함 (화면 클릭 유지)
-    if (gameState === 'foul') {
-      return;
-    }
-
-    // 대기, 결과 확인, 올클리어 화면 등 일반 상태일 때 뗄 때 다음 스텝 진행
-    if (gameState === 'waiting' || gameState === 'result' || isFoulLockedRef.current) {
-      
-      // 만약 부정출발 낙인이 찍힌 상태에서 뗀 거라면 이번 라운드 재시도 처리
-      if (isFoulLockedRef.current) {
-        isFoulLockedRef.current = false;
-        isCapturedRef.current = false;
-        currentRoundScoreRef.current = null;
-        setGameState('waiting');
-        return;
-      }
-
-      if (gameState === 'result' && scoreHistory.length >= totalRounds) {
-        setGameState('all-done');
-        const sum = scoreHistory.reduce((a, b) => a + b, 0);
-        const finalAvg = Math.round(sum / totalRounds);
-        saveFinalAverageAndProcessXp(finalAvg);
-        return;
-      }
-
-      // 정상적인 판 시작
-      setGameState('ready');
-      setSaveStatus('');
-      setXpNotice('');
-      isFoulLockedRef.current = false;
-      isCapturedRef.current = false;
-      currentRoundScoreRef.current = null;
-      
-      const randomDelay = Math.floor(Math.random() * 2500) + 2000; // 지연 난수도 미세 확장 (2.0s ~ 4.5s)
-      
-      timeoutRef.current = setTimeout(() => {
-        // 타이머 시작 직전에 이미 연타 빌런짓을 해서 락이 걸려있는지 체크
-        if (!isFoulLockedRef.current) {
-          setGameState('click');
-          startTimeRef.current = performance.now();
-        }
-      }, randomDelay);
-
-    } else if (gameState === 'click') {
-      // 초록색 화면에서 마우스를 뗐을 때, 누른 시점의 정상적인 점수가 저장되어 있다면 결과 셋업
-      if (currentRoundScoreRef.current !== null && !isFoulLockedRef.current) {
-        const finalScore = currentRoundScoreRef.current;
-        setResultTime(finalScore);
-        
-        const newHistory = [...scoreHistory, finalScore];
+        setResultTime(calcScore);
+        const newHistory = [...scoreHistory, calcScore];
         setScoreHistory(newHistory);
-        setGameState('result');
         
-        if (newHistory.length < totalRounds) {
-          setCurrentRound(newHistory.length + 1);
+        if (newHistory.length >= totalRounds) {
+          setGameState('all-done');
+          const sum = newHistory.reduce((a, b) => a + b, 0);
+          const finalAvg = Math.round(sum / totalRounds);
+          saveFinalAverageAndProcessXp(finalAvg);
+        } else {
+          setGameState('result');
         }
       }
+    } 
+    // 4. 이번 회차 기록 확인 후 다음 회차로 진행할 때
+    else if (gameState === 'result') {
+      const nextRoundNum = scoreHistory.length + 1;
+      setCurrentRound(nextRoundNum);
+      startNextRound();
     }
   };
 
@@ -382,16 +245,6 @@ export default function ReactionTestPage() {
     setSaveStatus('');
     setXpNotice('');
     setGameState('waiting');
-    isFoulLockedRef.current = false;
-    isCapturedRef.current = false;
-    currentRoundScoreRef.current = null;
-
-    // 보안 검증 장치 로컬 저장 정보 전면 클리어
-    clickTimestamps.current = [];
-    lastClickTimeRef.current = 0;
-    lastIntervalRef.current = 0;
-    consecutiveSameIntervalsRef.current = 0;
-    setCheatReason('');
   };
 
   const bgColors = {
@@ -400,8 +253,7 @@ export default function ReactionTestPage() {
     click: 'bg-emerald-500 border-emerald-400',
     foul: 'bg-amber-600 border-amber-500',
     result: 'bg-zinc-900 border-zinc-800',
-    'all-done': 'bg-zinc-950 border-zinc-800',
-    cheat: 'bg-red-950 border-red-900'
+    'all-done': 'bg-zinc-950 border-zinc-800'
   };
 
   const currentAvg = scoreHistory.length > 0 
@@ -428,7 +280,7 @@ export default function ReactionTestPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="font-mono text-[10px] font-black text-zinc-600 tracking-[0.15em] uppercase block mb-1">
-              LABGG PHYSICAL ENGINE & ANTI-CHEAT v2.0
+              LABGG PHYSICAL ENGINE
             </span>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{t.title}</h1>
           </div>
@@ -439,7 +291,8 @@ export default function ReactionTestPage() {
               <button
                 key={count}
                 disabled={scoreHistory.length > 0 && gameState !== 'all-done'}
-                onClick={() => { setTotalRounds(count); resetEntireTest(); }}
+                onClick={(e) => { e.stopPropagation(); setTotalRounds(count); resetEntireTest(); }}
+                onMouseDown={(e) => e.stopPropagation()}
                 className={`w-8 h-8 rounded-lg font-mono text-xs font-black transition-all ${
                   totalRounds === count ? 'bg-white text-black font-black' : 'text-zinc-500 hover:text-zinc-300 disabled:opacity-30'
                 }`}
@@ -465,10 +318,9 @@ export default function ReactionTestPage() {
           </div>
         </div>
 
-        {/* 🛡️ 꼼수 및 오토마우스 매크로 원천봉쇄용 인터랙션 코어 패널 */}
+        {/* ⚡ 클릭 판정 코어 패널 (onMouseDown 단일 이벤트로 하이퍼 리스폰스 작동) */}
         <div 
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
+          onMouseDown={handleScreenMouseDown}
           className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-150 active:scale-[0.995] select-none ${bgColors[gameState]}`}
         >
           {gameState === 'waiting' && (
@@ -487,24 +339,7 @@ export default function ReactionTestPage() {
           )}
 
           {gameState === 'foul' && (
-            <p className="text-sm font-bold text-white max-w-sm leading-relaxed">{t.foul}</p>
-          )}
-
-          {gameState === 'cheat' && (
-            <div className="space-y-4 max-w-md">
-              <p className="text-2xl font-mono font-black text-red-500 uppercase tracking-widest animate-pulse">{t.cheatTitle}</p>
-              <p className="text-xs text-red-300/80 font-mono font-bold leading-relaxed bg-black/40 p-4 border border-red-500/20 rounded-xl text-left">
-                {cheatReason}
-              </p>
-              <button 
-                onClick={(e) => { e.stopPropagation(); resetEntireTest(); }}
-                onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
-                className="mt-2 px-5 py-2.5 bg-red-700 border border-red-600 hover:bg-red-600 text-xs font-bold rounded-xl text-white transition-all shadow-md active:scale-95"
-              >
-                {t.cheatRestart}
-              </button>
-            </div>
+            <p className="text-sm font-bold text-white max-w-sm leading-relaxed animate-bounce">{t.foul}</p>
           )}
 
           {gameState === 'result' && (
@@ -536,7 +371,6 @@ export default function ReactionTestPage() {
               <button 
                 onClick={(e) => { e.stopPropagation(); resetEntireTest(); }}
                 onMouseDown={(e) => e.stopPropagation()}
-                onMouseUp={(e) => e.stopPropagation()}
                 className="mt-1 px-5 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-zinc-200 hover:bg-white hover:text-black transition-all"
               >
                 {t.restartAll}
@@ -572,10 +406,6 @@ export default function ReactionTestPage() {
           </div>
         </div>
 
-      </div>
-
-      <div className="w-full max-w-5xl mx-auto text-center font-mono text-[9px] text-zinc-700 font-bold uppercase tracking-widest">
-        LABGG METRICS ENGINE v3.6
       </div>
 
     </div>
