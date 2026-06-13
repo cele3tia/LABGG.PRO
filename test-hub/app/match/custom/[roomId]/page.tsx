@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { auth, database } from '../../../lib/firebase';
+import { auth, database, db } from '../../../lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { ref, onValue, update, set } from 'firebase/database';
+import { doc, getDoc } from 'firebase/firestore';
 
 type RoomStatus = 'waiting' | 'countdown' | 'playing' | 'result';
 type GameType = 'reaction' | 'cps';
@@ -16,7 +17,30 @@ interface PlayerInfo {
   photoURL?: string;
   isReady: boolean;
   score?: number;
+  level?: number;
+  currentTitle?: string;
 }
+
+const getLevelBadgeColor = (lv: number): string => {
+  if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+  if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30';
+  if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';
+  if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+  return 'text-zinc-400 bg-zinc-900 border-zinc-800';
+};
+
+const TITLE_COLORS: Record<string, string> = {
+  dev: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  ai: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
+  godspeed: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+  fast: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+  newbie: 'text-zinc-300 bg-zinc-900 border-zinc-800'
+};
+
+const TITLE_MAP: Record<'ko' | 'en', Record<string, string>> = {
+  ko: { dev: '개발자', ai: 'AI', godspeed: '전광석화', fast: '빠름', newbie: '뉴비' },
+  en: { dev: 'Developer', ai: 'AI', godspeed: 'Lightning', fast: 'Swift', newbie: 'Newbie' }
+};
 
 export default function CustomRoomPage() {
   const params = useParams();
@@ -37,6 +61,9 @@ export default function CustomRoomPage() {
   const [cpsClicks, setCpsClicks] = useState<number>(0);
   const [cpsTimeLeft, setCpsTimeLeft] = useState<number>(5);
   const [reactionStartTime, setReactionStartTime] = useState<number>(0);
+  
+  // 📋 복사 피드백 제어 상태 변수
+  const [copied, setCopied] = useState<boolean>(false);
 
   const reactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cpsIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,6 +98,40 @@ export default function CustomRoomPage() {
       if (cpsIntervalRef.current) clearInterval(cpsIntervalRef.current);
     };
   }, [roomId]);
+
+  // 📡 [NEW] Firestore 유저 인벤토리 프로필 ➡️ Realtime DB 대기실 실시간 연동 소켓 파이프라인
+  useEffect(() => {
+    if (!user || roomStatus !== 'waiting') return;
+
+    const injectProfileData = async () => {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          const profile = docSnap.data();
+          const syncPayload = {
+            level: profile.level || 1,
+            currentTitle: profile.currentTitle || '',
+            photoURL: profile.photoURL || user.photoURL || 'https://api.dicebear.com/7.x/bottts/svg'
+          };
+
+          // 내가 호스트이고 레벨 동기화가 아직 안 되었을 때
+          if (hostPlayer && hostPlayer.uid === user.uid && !hostPlayer.level) {
+            await update(ref(database, `rooms/${roomId}/players/host`), syncPayload);
+          } 
+          // 내가 게스트이고 레벨 동기화가 아직 안 되었을 때
+          else if (guestPlayer && guestPlayer.uid === user.uid && !guestPlayer.level) {
+            await update(ref(database, `rooms/${roomId}/players/guest`), syncPayload);
+          }
+        }
+      } catch (err) {
+        console.error("Profile sync failed:", err);
+      }
+    };
+
+    injectProfileData();
+  }, [user, hostPlayer, guestPlayer, roomStatus, roomId]);
 
   useEffect(() => {
     if (roomStatus === 'countdown') {
@@ -150,7 +211,6 @@ export default function CustomRoomPage() {
     await update(scoreRef, { score });
 
     setTimeout(async () => {
-      // 실시간으로 둘 다 점수가 등록되었는지 가볍게 크로스체크 후 결과창 연동
       const snap = await set(ref(database, `rooms/${roomId}/status`), 'result');
     }, 1000);
   };
@@ -176,6 +236,13 @@ export default function CustomRoomPage() {
     router.push('/match/custom');
   };
 
+  // 📋 방 코드 비동기 클립보드 복사 유틸 시스템
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const getWinnerMessage = () => {
     const hScore = hostPlayer?.score;
     const gScore = guestPlayer?.score;
@@ -193,46 +260,70 @@ export default function CustomRoomPage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none relative overflow-hidden">
       
-      {/* 백그라운드 디자인 효과 */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(168,85,247,0.02),transparent_60%)] pointer-events-none" />
       
-      {/* 상단 룸 컨트롤 스틱 */}
+      {/* 상단 헤더 기지 (클릭 시 복사 가능한 액션 버튼으로 개수) */}
       <div className="relative z-10 w-full max-w-5xl mx-auto flex justify-between items-center border-b border-zinc-900/60 pb-5">
         <button onClick={handleLeaveRoom} className="px-4 py-2 rounded-xl bg-zinc-950 border border-zinc-900 text-xs font-mono font-bold text-rose-500/80 hover:text-white hover:bg-rose-950/20 hover:border-rose-500/30 transition-all active:scale-95">
           {lang === 'ko' ? '← 나가기 (LEAVE)' : '← ESCAPE'}
         </button>
-        <div className="flex items-center gap-2 font-mono text-xs">
-          <span className="text-zinc-600 font-bold uppercase tracking-wider">ROOM SYSTEM NODE:</span>
-          <span className="text-purple-400 font-black tracking-[0.2em] bg-purple-500/5 px-4 py-1.5 border border-purple-500/20 rounded-xl text-xs sm:text-sm shadow-md">{roomId}</span>
+        
+        {/* 📋 클릭 시 순간 복사 레이아웃 세팅 */}
+        <div className="flex items-center gap-3 font-mono text-xs">
+          <span className="text-zinc-600 font-bold uppercase tracking-wider hidden sm:inline">ROOM SYSTEM NODE:</span>
+          <button 
+            onClick={handleCopyCode}
+            className="group/copy relative text-purple-400 font-black tracking-[0.2em] bg-purple-500/5 px-4 py-1.5 border border-purple-500/20 rounded-xl text-xs sm:text-sm shadow-md hover:border-purple-400 hover:bg-purple-500/10 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <span>{roomId}</span>
+            <span className="text-[9px] font-sans font-bold bg-purple-500/20 px-1.5 py-0.5 rounded text-purple-300 group-hover/copy:bg-purple-500 group-hover/copy:text-white transition-all uppercase tracking-normal">
+              {copied ? (lang === 'ko' ? '복사됨' : 'COPIED') : (lang === 'ko' ? '복사' : 'COPY')}
+            </span>
+          </button>
         </div>
       </div>
 
       {/* 메인 배틀 아레나 스테이지 */}
       <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center my-6 space-y-6 relative z-10">
         
-        {/* 🟢 대기방 상태 (Lobby UI) */}
+        {/* 🟢 대기방 상태 (Lobby UI + 완벽한 프로필 연동 스킨 적용) */}
         {roomStatus === 'waiting' && (
           <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
             
             <div className="grid grid-cols-1 md:grid-cols-7 items-center gap-4 md:gap-0">
+              
               {/* 호스트 카드 */}
               <div className="md:col-span-3 bg-zinc-950/40 border border-zinc-900 rounded-3xl p-8 flex flex-col items-center gap-4 relative backdrop-blur-md shadow-xl">
                 <div className="absolute top-4 left-5 font-mono text-[9px] font-black text-zinc-600 tracking-widest uppercase">// HOST NODE</div>
-                <div className="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center font-mono text-2xl font-black text-purple-400 shadow-[inset_0_0_15px_rgba(168,85,247,0.05)] uppercase">
-                  {hostPlayer?.displayName[0]}
+                
+                <div className="w-16 h-16 bg-zinc-900 border-2 border-zinc-800 rounded-2xl overflow-hidden p-0.5">
+                  <img src={hostPlayer?.photoURL || 'https://api.dicebear.com/7.x/bottts/svg'} alt="Host" className="w-full h-full object-cover rounded-xl" />
                 </div>
-                <div className="text-center space-y-0.5">
-                  <p className="text-base font-black text-white tracking-tight">{hostPlayer?.displayName}</p>
-                  <p className="text-[10px] font-mono text-zinc-600 font-bold tracking-wider">SYSTEM_OPERATOR</p>
+                
+                <div className="text-center space-y-2 flex flex-col items-center">
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-black text-white tracking-tight">{hostPlayer?.displayName}</p>
+                    <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border leading-none ${getLevelBadgeColor(hostPlayer?.level || 1)}`}>
+                      LV.{hostPlayer?.level || 1}
+                    </span>
+                  </div>
+                  
+                  {hostPlayer?.currentTitle ? (
+                    <span className={`text-[10px] font-sans font-bold px-2.5 py-0.5 rounded border uppercase tracking-wide ${TITLE_COLORS[hostPlayer.currentTitle] || 'text-zinc-400 bg-zinc-900 border-zinc-800'}`}>
+                      {TITLE_MAP[lang][hostPlayer.currentTitle] || hostPlayer.currentTitle}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-sans font-bold px-2.5 py-0.5 rounded border border-zinc-900 bg-zinc-950 text-zinc-600 tracking-wide uppercase">칭호 없음</span>
+                  )}
                 </div>
+                
                 <span className="text-[10px] font-mono font-black px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl tracking-wider uppercase shadow-sm">
                   READY
                 </span>
               </div>
 
-              {/* 중앙 VS 이스포츠 디바이더 */}
               <div className="md:col-span-1 flex justify-center items-center font-mono py-2">
-                <span className="text-2xl font-black text-zinc-800 italic tracking-tighter opacity-80 group-hover:text-purple-500 transition-colors">VS</span>
+                <span className="text-2xl font-black text-zinc-800 italic tracking-tighter opacity-80">VS</span>
               </div>
 
               {/* 게스트 카드 */}
@@ -240,13 +331,27 @@ export default function CustomRoomPage() {
                 <div className="absolute top-4 left-5 font-mono text-[9px] font-black text-zinc-600 tracking-widest uppercase">// CHALLENGER NODE</div>
                 {guestPlayer ? (
                   <>
-                    <div className="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center font-mono text-2xl font-black text-purple-400 shadow-[inset_0_0_15px_rgba(168,85,247,0.05)] uppercase">
-                      {guestPlayer.displayName[0]}
+                    <div className="w-16 h-16 bg-zinc-900 border-2 border-zinc-800 rounded-2xl overflow-hidden p-0.5">
+                      <img src={guestPlayer.photoURL || 'https://api.dicebear.com/7.x/bottts/svg'} alt="Guest" className="w-full h-full object-cover rounded-xl" />
                     </div>
-                    <div className="text-center space-y-0.5">
-                      <p className="text-base font-black text-white tracking-tight">{guestPlayer.displayName}</p>
-                      <p className="text-[10px] font-mono text-zinc-600 font-bold tracking-wider">OPPONENT_MATRIX</p>
+                    
+                    <div className="text-center space-y-2 flex flex-col items-center">
+                      <div className="flex items-center gap-2">
+                        <p className="text-base font-black text-white tracking-tight">{guestPlayer.displayName}</p>
+                        <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border leading-none ${getLevelBadgeColor(guestPlayer.level || 1)}`}>
+                          LV.{guestPlayer.level || 1}
+                        </span>
+                      </div>
+                      
+                      {guestPlayer.currentTitle ? (
+                        <span className={`text-[10px] font-sans font-bold px-2.5 py-0.5 rounded border uppercase tracking-wide ${TITLE_COLORS[guestPlayer.currentTitle] || 'text-zinc-400 bg-zinc-900 border-zinc-800'}`}>
+                          {TITLE_MAP[lang][guestPlayer.currentTitle] || guestPlayer.currentTitle}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-sans font-bold px-2.5 py-0.5 rounded border border-zinc-900 bg-zinc-950 text-zinc-600 tracking-wide uppercase">칭호 없음</span>
+                      )}
                     </div>
+                    
                     <span className={`text-[10px] font-mono font-black px-3 py-1.5 rounded-xl tracking-wider uppercase border transition-all ${
                       guestPlayer.isReady 
                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-sm' 
@@ -288,7 +393,7 @@ export default function CustomRoomPage() {
           </div>
         )}
 
-        {/* ⏳ 카운트다운 진입 시 (Countdown Stage) */}
+        {/* ⏳ 카운트다운 상태 */}
         {roomStatus === 'countdown' && (
           <div className="h-[360px] flex flex-col items-center justify-center">
             <span className="text-8xl font-mono font-black text-purple-500 animate-[ping_1s_infinite] tracking-tighter drop-shadow-[0_0_30px_rgba(168,85,247,0.4)]">
@@ -297,7 +402,7 @@ export default function CustomRoomPage() {
           </div>
         )}
 
-        {/* ⚡ 인게임 모드 액티브 상태 (Playing Arena) */}
+        {/* ⚡ 인게임 모드 액티브 상태 */}
         {roomStatus === 'playing' && (
           <div 
             onMouseDown={handleGamePanelClick}
@@ -323,7 +428,7 @@ export default function CustomRoomPage() {
           </div>
         )}
 
-        {/* 🏆 대결 정산 종료 상태 (Result Dashboard) */}
+        {/* 🏆 대결 정산 종료 상태 */}
         {roomStatus === 'result' && (
           <div className="bg-zinc-950/40 border border-zinc-900 p-8 sm:p-10 rounded-[2rem] space-y-8 text-center max-w-2xl mx-auto w-full backdrop-blur-md shadow-2xl animate-[fadeIn_0.3s_ease-out]">
             <div className="space-y-1">
@@ -334,14 +439,12 @@ export default function CustomRoomPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 font-mono text-left max-w-md mx-auto">
-              {/* 호스트 데이터 보드 */}
               <div className={`p-5 rounded-2xl border transition-all ${hostPlayer?.score && guestPlayer?.score && ((gameType === 'reaction' ? hostPlayer.score < guestPlayer.score : hostPlayer.score > guestPlayer.score)) ? 'bg-purple-500/5 border-purple-500/20 shadow-[inset_0_0_15px_rgba(168,85,247,0.05)]' : 'bg-zinc-900/40 border-zinc-900'}`}>
                 <span className="text-[10px] text-zinc-500 font-black block tracking-wider uppercase mb-1">HOST SCORE</span>
                 <span className="text-2xl font-black text-white tabular-nums">{hostPlayer?.score || 0}</span>
                 <span className="text-[10px] text-zinc-600 font-bold ml-1 uppercase">{gameType === 'reaction' ? 'ms' : 'CPS'}</span>
               </div>
               
-              {/* 게스트 데이터 보드 */}
               <div className={`p-5 rounded-2xl border transition-all ${hostPlayer?.score && guestPlayer?.score && ((gameType === 'reaction' ? guestPlayer.score < hostPlayer.score : guestPlayer.score > hostPlayer.score)) ? 'bg-purple-500/5 border-purple-500/20 shadow-[inset_0_0_15px_rgba(168,85,247,0.05)]' : 'bg-zinc-900/40 border-zinc-900'}`}>
                 <span className="text-[10px] text-zinc-500 font-black block tracking-wider uppercase mb-1">GUEST SCORE</span>
                 <span className="text-2xl font-black text-white tabular-nums">{guestPlayer?.score || 0}</span>
@@ -370,7 +473,6 @@ export default function CustomRoomPage() {
 
       </div>
 
-      {/* 하단 그리드 바 메트릭스 */}
       <div className="w-full max-w-5xl mx-auto border-t border-zinc-900/60 pt-5 font-mono text-[9px] text-zinc-600 flex justify-between items-center uppercase tracking-wider relative z-10">
         <div>LABGG LIVE ROOM METRICS v1.2</div>
         <div>REALTIME DISPATCH ENGINE SECURITY LOCK</div>

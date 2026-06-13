@@ -2,22 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation'; // 💡 라우팅용 내비게이터 임포트
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, updateProfile, User } from 'firebase/auth';
+import { onAuthStateChanged, updateProfile, signOut, User } from 'firebase/auth'; // 💡 signOut 임포트 완료
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
-// 💡 레벨별 필요 경험치 공식 (초반 성장 폭발형 곡선 설정)
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
 };
 
-// 💡 10레벨 단위 뱃지 색상 테일윈드 클래스 반환 함수
 const getLevelBadgeColor = (lv: number): string => {
-  if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30'; // 40렙 이상: 신화 골드
-  if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30'; // 30~39렙: 에픽 퍼플
-  if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';     // 20~29렙: 레어 레디언트
-  if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'; // 10~19렙: 고급 그린
-  return 'text-zinc-400 bg-zinc-900 border-zinc-800'; // 1~9렙: 일반 회색
+  if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30'; 
+  if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30'; 
+  if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';     
+  if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'; 
+  return 'text-zinc-400 bg-zinc-900 border-zinc-800'; 
 };
 
 const TRANSLATIONS = {
@@ -28,6 +27,7 @@ const TRANSLATIONS = {
     homeBtn: '홈으로 가기',
     lvl: 'Lv.',
     editBtn: '닉네임 변경',
+    logoutBtn: '로그아웃', // 💡 국문 레이블 추가
     saveBtn: '적용',
     cancelBtn: '취소',
     saving: '저장 중..',
@@ -61,6 +61,7 @@ const TRANSLATIONS = {
     homeBtn: 'Go to Home',
     lvl: 'Lv.',
     editBtn: 'Edit Nickname',
+    logoutBtn: 'Sign Out', // 💡 영문 레이블 추가
     saveBtn: 'Apply',
     cancelBtn: 'Cancel',
     saving: 'Saving...',
@@ -90,6 +91,7 @@ const TRANSLATIONS = {
 };
 
 export default function ProfilePage() {
+  const router = useRouter(); // 💡 라우터 인스턴스 활성화
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -155,6 +157,16 @@ export default function ProfilePage() {
     }
   };
 
+  // 💡 [NEW] 파이어베이스 로그아웃 코어 제어 핸들러
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/'); // 로그아웃 성공 시 메인 홈 화면으로 다이렉트 이주
+    } catch (e) {
+      console.error("로그아웃 실패:", e);
+    }
+  };
+
   const handleEquipToggle = async (titleId: string) => {
     if (!user) return;
     try {
@@ -174,7 +186,8 @@ export default function ProfilePage() {
   const hasGodspeed = hasAi || (reactionBest > 0 && reactionBest <= 180) || cpsBest >= 10;
   const hasFast = hasGodspeed || (reactionBest > 0 && reactionBest <= 230) || cpsBest >= 7;
 
-  const unlockedTitles = { dev: isDevUser, ai: hasAi, godspeed: hasGodspeed, fast: hasFast, newbie: true };
+  // 💡 Record 타입을 부여해 하단 루프에서 무지성 @ts-ignore를 안 써도 타입 에러가 안 나게 대수술 완료
+  const unlockedTitles: Record<string, boolean> = { dev: isDevUser, ai: hasAi, godspeed: hasGodspeed, fast: hasFast, newbie: true };
   const activeTitle = TITLES_LIST.find(t => t.id === currentTitleId);
   const nextXpNeeded = getNextXpForLevel(level);
   const xpPercentage = Math.min(100, Math.round((xp / nextXpNeeded) * 100));
@@ -200,7 +213,6 @@ export default function ProfilePage() {
                   <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{displayName}</h2>
                 )}
                 
-                {/* 💡 10레벨 단위 자동 유동 칼라 배정 완료 */}
                 <span className={`font-mono text-xs font-black px-2 py-0.5 rounded border ${getLevelBadgeColor(level)}`}>
                   {t.lvl}{level}
                 </span>
@@ -214,6 +226,8 @@ export default function ProfilePage() {
               <p className="text-xs font-mono text-zinc-500">{user.email}</p>
             </div>
           </div>
+          
+          {/* 🛠️ 버튼 레이아웃 제어 기지 */}
           <div className="shrink-0 w-full sm:w-auto text-center sm:text-right">
             {isEditing ? (
               <div className="flex items-center justify-center sm:justify-end gap-2">
@@ -221,7 +235,13 @@ export default function ProfilePage() {
                 <button onClick={() => { setIsEditing(false); setDisplayName(user.displayName || 'Anonymous'); }} className="px-4 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold rounded-xl text-xs">{t.cancelBtn}</button>
               </div>
             ) : (
-              <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-300 hover:text-white font-bold rounded-xl text-xs transition-all">{t.editBtn}</button>
+              <div className="flex items-center justify-center sm:justify-end gap-2">
+                <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-300 hover:text-white font-bold rounded-xl text-xs transition-all">{t.editBtn}</button>
+                {/* 🔴 [NEW] 게이밍 텍스처를 살린 모던 로그아웃 디바이스 버튼 장착 */}
+                <button onClick={handleLogout} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-950/10 font-bold rounded-xl text-xs transition-all">
+                  {t.logoutBtn}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -260,7 +280,6 @@ export default function ProfilePage() {
           <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.collectionTitle}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {TITLES_LIST.map((title) => {
-              // @ts-ignore
               const isUnlocked = unlockedTitles[title.id];
               const isEquipped = currentTitleId === title.id;
               return (
