@@ -37,7 +37,9 @@ const TRANSLATIONS = {
     round: 'ROUND',
     record: 'SCORE',
     finalAvg: '최종 평균 속도',
-    restartAll: '처음부터 다시 하기'
+    restartAll: '처음부터 다시 하기',
+    percentileTitle: '피지컬 백분위',
+    rankTitle: '최종 등급'
   },
   en: {
     back: '← Back to Home',
@@ -62,7 +64,9 @@ const TRANSLATIONS = {
     round: 'ROUND',
     record: 'SCORE',
     finalAvg: 'Final Avg Speed',
-    restartAll: 'Restart Test'
+    restartAll: 'Restart Test',
+    percentileTitle: 'Percentile',
+    rankTitle: 'Final Rank'
   }
 };
 
@@ -185,7 +189,7 @@ export default function ReactionTestPage() {
     setSaveStatus('');
     setXpNotice('');
     
-    const randomDelay = Math.floor(Math.random() * 2500) + 2000; // 2.0초 ~ 4.5초 난수 생성
+    const randomDelay = Math.floor(Math.random() * 2500) + 2000;
     
     timeoutRef.current = setTimeout(() => {
       setGameState('click');
@@ -193,25 +197,20 @@ export default function ReactionTestPage() {
     }, randomDelay);
   };
 
-  // 🎯 마우스를 누르는 순간 모든 상태 전환 및 측정을 "단 한 번에" 완벽 처리
   const handleScreenMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
 
-    // 1. 대기 화면이나 부정출발 상태에서 클릭하면 즉시 타이머 시작하며 재시도
     if (gameState === 'waiting' || gameState === 'foul') {
       startNextRound();
     } 
-    // 2. 빨간색 화면(ready)일 때 누르면 예외 없이 즉시 부정출발(foul) 처리
     else if (gameState === 'ready') {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setGameState('foul');
     } 
-    // 3. 초록색 화면(click)에서 정상 클릭 완료한 경우
     else if (gameState === 'click') {
       const clickTime = performance.now();
       const calcScore = Math.round(clickTime - startTimeRef.current);
       
-      // 인간 한계선 미만 예측 입력인 경우 부정출발 처리
       if (calcScore < 100) {
         setGameState('foul');
       } else {
@@ -229,7 +228,6 @@ export default function ReactionTestPage() {
         }
       }
     } 
-    // 4. 이번 회차 기록 확인 후 다음 회차로 진행할 때
     else if (gameState === 'result') {
       const nextRoundNum = scoreHistory.length + 1;
       setCurrentRound(nextRoundNum);
@@ -259,6 +257,45 @@ export default function ReactionTestPage() {
   const currentAvg = scoreHistory.length > 0 
     ? Math.round(scoreHistory.reduce((a, b) => a + b, 0) / scoreHistory.length)
     : 0;
+
+  // ⚡ 반응속도(ms) 수치 맞춤 등급 판정 알고리즘 (낮을수록 고티어)
+  const getAdvancedStats = (avgMs: number, currentLang: 'ko' | 'en') => {
+    if (avgMs === 0) return { rank: '---', percent: '---', color: 'text-zinc-600', glow: '' };
+    
+    if (avgMs > 360) {
+      return { rank: currentLang === 'ko' ? '아이언 (Iron)' : 'Iron', percent: currentLang === 'ko' ? '상위 98%' : 'Top 98%', color: 'text-zinc-500', glow: '' };
+    }
+    if (avgMs > 310) {
+      return { rank: currentLang === 'ko' ? '브론즈 (Bronze)' : 'Bronze', percent: currentLang === 'ko' ? '상위 85%' : 'Top 85%', color: 'text-amber-700', glow: '' };
+    }
+    if (avgMs > 270) {
+      return { rank: currentLang === 'ko' ? '실버 (Silver)' : 'Silver', percent: currentLang === 'ko' ? '상위 70%' : 'Top 70%', color: 'text-zinc-400', glow: '' };
+    }
+    if (avgMs > 240) {
+      return { rank: currentLang === 'ko' ? '골드 (Gold)' : 'Gold', percent: currentLang === 'ko' ? '상위 50%' : 'Top 50%', color: 'text-yellow-500', glow: '' };
+    }
+    if (avgMs > 220) {
+      return { rank: currentLang === 'ko' ? '플래티넘 (Platinum)' : 'Platinum', percent: currentLang === 'ko' ? '상위 35%' : 'Top 35%', color: 'text-teal-400', glow: '' };
+    }
+    if (avgMs > 200) {
+      return { rank: currentLang === 'ko' ? '다이아몬드 (Diamond)' : 'Diamond', percent: currentLang === 'ko' ? '상위 18%' : 'Top 18%', color: 'text-sky-400', glow: 'shadow-[0_0_15px_rgba(56,189,248,0.15)]' };
+    }
+    if (avgMs > 185) {
+      return { rank: currentLang === 'ko' ? '마스터 (Master)' : 'Master', percent: currentLang === 'ko' ? '상위 8%' : 'Top 8%', color: 'text-indigo-400', glow: 'shadow-[0_0_20px_rgba(129,140,248,0.2)]' };
+    }
+    if (avgMs > 170) {
+      return { rank: currentLang === 'ko' ? '그랜드마스터 (Grandmaster)' : 'Grandmaster', percent: currentLang === 'ko' ? '상위 3%' : 'Top 3%', color: 'text-purple-400', glow: 'shadow-[0_0_22px_rgba(192,132,252,0.25)]' };
+    }
+    if (avgMs > 150) {
+      return { rank: currentLang === 'ko' ? '챌린저 (Challenger)' : 'Challenger', percent: currentLang === 'ko' ? '상위 0.8%' : 'Top 0.8%', color: 'text-amber-400', glow: 'shadow-[0_0_25px_rgba(251,191,36,0.35)]' };
+    }
+    if (avgMs > 130) {
+      return { rank: currentLang === 'ko' ? '이모탈 (Immortal)' : 'Immortal', percent: currentLang === 'ko' ? '상위 0.1%' : 'Top 0.1%', color: 'text-rose-500 font-extrabold', glow: 'shadow-[0_0_30px_rgba(244,63,94,0.4)] border-rose-500/20' };
+    }
+    return { rank: currentLang === 'ko' ? '레전드 (Legend) 🔥' : 'Legend 🔥', percent: currentLang === 'ko' ? '상위 0.01%' : 'Top 0.01%', color: 'text-red-500 animate-pulse font-black', glow: 'shadow-[0_0_40px_rgba(239,68,68,0.5)] border-red-500/40' };
+  };
+
+  const stats = getAdvancedStats(currentAvg, lang);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none">
@@ -318,7 +355,7 @@ export default function ReactionTestPage() {
           </div>
         </div>
 
-        {/* ⚡ 클릭 판정 코어 패널 (onMouseDown 단일 이벤트로 하이퍼 리스폰스 작동) */}
+        {/* ⚡ 클릭 판정 코어 패널 */}
         <div 
           onMouseDown={handleScreenMouseDown}
           className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer transition-all duration-150 active:scale-[0.995] select-none ${bgColors[gameState]}`}
@@ -355,12 +392,24 @@ export default function ReactionTestPage() {
           )}
 
           {gameState === 'all-done' && (
-            <div className="space-y-5">
+            <div className="space-y-5 w-full max-w-md animate-[fadeIn_0.3s_ease-out]">
               <div>
                 <p className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest">{t.finalAvg}</p>
                 <p className="text-7xl font-black text-white tracking-tighter mt-1 tabular-nums">
                   {currentAvg}<span className="text-2xl font-bold ml-1 text-zinc-600">{t.ms}</span>
                 </p>
+              </div>
+
+              {/* 📊 CPS와 완벽 동기화된 등급 및 피지컬 백분위 표시 보드 */}
+              <div className={`grid grid-cols-2 gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-xl font-mono text-left ${stats.glow} transition-all duration-500`}>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-zinc-500 block uppercase tracking-wider">{t.rankTitle}</span>
+                  <span className={`text-sm font-black tracking-tight ${stats.color}`}>{stats.rank}</span>
+                </div>
+                <div className="space-y-0.5 border-l border-zinc-800 pl-4">
+                  <span className="text-[10px] font-bold text-zinc-500 block uppercase tracking-wider">{t.percentileTitle}</span>
+                  <span className="text-sm font-black text-white tracking-tight">{stats.percent}</span>
+                </div>
               </div>
 
               <div className="flex flex-col items-center gap-2">
