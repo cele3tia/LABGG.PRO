@@ -200,9 +200,9 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
 
             if (rank === 1) {
               topSkin = {
-                text: 'text-amber-500 font-black',
-                bg: 'bg-amber-50/50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.03)]',
-                scoreGlow: 'text-amber-500 font-black drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                text: 'text-orange-500 font-black',
+                bg: 'bg-orange-50/50 dark:bg-orange-500/5 border-orange-200 dark:border-orange-500/20 shadow-[0_0_15px_rgba(249,115,22,0.05)]',
+                scoreGlow: 'text-orange-500 font-black drop-shadow-[0_0_8px_rgba(249,115,22,0.5)]'
               };
             } else if (rank === 2) {
               topSkin = {
@@ -212,9 +212,9 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
               };
             } else if (rank === 3) {
               topSkin = {
-                text: 'text-orange-500 font-black',
-                bg: 'bg-orange-50/50 dark:bg-orange-500/5 border-orange-200 dark:border-orange-500/20',
-                scoreGlow: 'text-orange-600 dark:text-orange-500 font-bold'
+                text: 'text-amber-600 font-black',
+                bg: 'bg-amber-50/50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20',
+                scoreGlow: 'text-amber-600 dark:text-amber-500 font-bold'
               };
             }
 
@@ -233,18 +233,18 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
                       <img 
                         src={item.photoURL} 
                         alt={item.displayName} 
-                        className={`w-5 h-5 rounded-md border object-cover ${rank === 1 ? 'border-amber-400/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'border-zinc-200 dark:border-zinc-800'}`}
+                        className={`w-5 h-5 rounded-md border object-cover ${rank === 1 ? 'border-orange-400/50 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'border-zinc-200 dark:border-zinc-800'}`}
                       />
                     ) : (
-                      <div className={`w-5 h-5 rounded-md font-mono text-[9px] font-black flex items-center justify-center uppercase ${rank === 1 ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500'}`}>
+                      <div className={`w-5 h-5 rounded-md font-mono text-[9px] font-black flex items-center justify-center uppercase ${rank === 1 ? 'bg-orange-500/20 border-orange-500/50 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500'}`}>
                         {item.displayName[0]}
                       </div>
                     )}
 
-                    {/* 💡 1등 전용 네온 전광판 애니메이션 (공간 제약 완벽 해결) */}
+                    {/* 💡 1등 전용: 글씨 자체가 도트 네온으로 빛나는 LED 전광판 애니메이션 */}
                     {rank === 1 ? (
-                      <div className="w-[100px] sm:w-[130px] overflow-hidden marquee-mask flex items-center">
-                        <span className="animate-marquee font-mono text-[12px] text-amber-600 dark:text-amber-400 font-black tracking-[0.1em] uppercase">
+                      <div className="w-[100px] sm:w-[130px] overflow-hidden marquee-mask flex items-center pt-0.5">
+                        <span className="animate-marquee font-mono text-[14px] font-black tracking-[0.2em] uppercase dot-matrix-led px-2">
                           {item.displayName}
                         </span>
                       </div>
@@ -260,7 +260,7 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
                   <span className={`text-sm tabular-nums ${rank <= 3 ? topSkin.scoreGlow : 'text-zinc-800 dark:text-zinc-400 font-bold'}`}>
                     {item.score}
                   </span>
-                  <span className={`text-[9px] font-bold uppercase pb-[1px] ${rank === 1 ? 'text-amber-500/70' : 'text-zinc-400 dark:text-zinc-600'}`}>{currentUnit}</span>
+                  <span className={`text-[9px] font-bold uppercase pb-[1px] ${rank === 1 ? 'text-orange-500/70' : 'text-zinc-400 dark:text-zinc-600'}`}>{currentUnit}</span>
                 </div>
               </div>
             );
@@ -269,6 +269,21 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
       </div>
 
       <style jsx global>{`
+        /* 💡 글씨를 LED 도트 배열로 뚫어버리는 마법의 CSS */
+        .dot-matrix-led {
+          background-image: radial-gradient(circle, #ea580c 1px, transparent 1px);
+          background-size: 2.5px 2.5px;
+          color: transparent;
+          -webkit-background-clip: text;
+          background-clip: text;
+          /* 과하지 않게 적당히 쨍한 네온 글로우 */
+          filter: drop-shadow(0 0 2px rgba(234, 88, 12, 0.8)) drop-shadow(0 0 6px rgba(234, 88, 12, 0.4));
+        }
+        .dark .dot-matrix-led {
+          background-image: radial-gradient(circle, #f97316 1px, transparent 1px);
+          filter: drop-shadow(0 0 2px rgba(249, 115, 22, 0.8)) drop-shadow(0 0 6px rgba(249, 115, 22, 0.4));
+        }
+
         /* 전광판 (Marquee) 애니메이션 CSS */
         @keyframes marquee {
           0% { transform: translateX(130px); }
@@ -279,6 +294,7 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
           white-space: nowrap;
           animation: marquee 5s linear infinite;
         }
+        
         /* 양끝을 흐리게 지워주는 그라데이션 마스크 */
         .marquee-mask {
           -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
