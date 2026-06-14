@@ -18,8 +18,8 @@ type PeriodType = 'daily' | 'weekly' | 'all';
 const TRANSLATIONS = {
   ko: {
     label: 'GLOBAL LEADERBOARD',
-    reactionTab: '시각 반응 속도',
-    cpsTab: 'CPS 측정',
+    reactionTab: 'Reaction',
+    cpsTab: 'CPS Bench',
     daily: '24H',
     weekly: '1 WEEK',
     all: 'ALL-TIME',
@@ -56,15 +56,7 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const t = TRANSLATIONS[lang];
 
-  // 💡 선택한 탭 테마 컬러 동적 매핑
   const isReaction = gameTab === 'reaction';
-  const theme = {
-    text: isReaction ? 'text-emerald-400' : 'text-cyan-400',
-    bg: isReaction ? 'bg-emerald-500' : 'bg-cyan-500',
-    border: isReaction ? 'border-emerald-500/20' : 'border-cyan-500/20',
-    tabBorder: isReaction ? 'border-emerald-400' : 'border-cyan-400',
-    hoverBg: isReaction ? 'hover:bg-emerald-950/10' : 'hover:bg-cyan-950/10'
-  };
 
   useEffect(() => {
     setLoading(true);
@@ -122,7 +114,7 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
         if (current === 'weekly') return 'all';
         return 'daily';
       });
-    }, 3000);
+    }, 4000); 
   };
 
   const stopAutoPlay = () => {
@@ -136,57 +128,59 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
 
   const handlePeriodClick = (period: PeriodType) => {
     setPeriodTab(period);
-    startAutoPlay();
+    startAutoPlay(); 
   };
 
   const currentList = leaderboardData[periodTab];
   const currentUnit = isReaction ? t.ms : t.cps;
 
   return (
-    <div className="flex flex-col h-full justify-between">
+    <div 
+      className="flex flex-col h-full justify-between select-none"
+      onMouseEnter={stopAutoPlay} 
+      onMouseLeave={startAutoPlay}
+    >
       
-      {/* 1. 상단 컨트롤 바 헤더 헤드 */}
-      <div className="flex justify-between items-end border-b border-zinc-900 pb-5 mb-5">
-        <div className="space-y-2">
-          <span className="font-mono text-[10px] font-black text-zinc-600 tracking-[0.2em] uppercase block">
-            // {t.label}
-          </span>
-          <div className="flex items-center gap-4 font-sans text-sm font-black">
+      <div className="flex flex-col gap-4 border-b border-zinc-200 dark:border-zinc-800/80 pb-5 mb-5">
+        <span className="font-mono text-[9px] font-black text-zinc-400 dark:text-zinc-500 tracking-[0.2em] uppercase block">
+          // {t.label}
+        </span>
+        
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-5 font-sans text-[15px] font-bold">
             <button 
               onClick={() => setGameTab('reaction')} 
-              className={`pb-1 transition-all border-b-2 tracking-tight ${isReaction ? `text-white ${theme.tabBorder}` : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
+              className={`pb-1 transition-all border-b-2 tracking-tight ${isReaction ? 'text-black dark:text-white border-black dark:border-white' : 'text-zinc-400 dark:text-zinc-600 border-transparent hover:text-zinc-600 dark:hover:text-zinc-400'}`}
             >
               {t.reactionTab}
             </button>
             <button 
               onClick={() => setGameTab('cps')} 
-              className={`pb-1 transition-all border-b-2 tracking-tight ${!isReaction ? `text-white ${theme.tabBorder}` : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
+              className={`pb-1 transition-all border-b-2 tracking-tight ${!isReaction ? 'text-black dark:text-white border-black dark:border-white' : 'text-zinc-400 dark:text-zinc-600 border-transparent hover:text-zinc-600 dark:hover:text-zinc-400'}`}
             >
               {t.cpsTab}
             </button>
           </div>
-        </div>
 
-        {/* 하이테크 피봇 세션 기간 컨트롤 패널 */}
-        <div className="flex bg-zinc-950 border border-zinc-900 p-0.5 rounded-lg font-mono text-[9px]">
-          {(['daily', 'weekly', 'all'] as PeriodType[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => handlePeriodClick(p)}
-              className={`px-3 py-1.5 rounded-md font-black transition-all ${
-                periodTab === p ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-600 hover:text-zinc-400'
-              }`}
-            >
-              {t[p]}
-            </button>
-          ))}
+          <div className="flex bg-zinc-100 dark:bg-zinc-950/80 border border-zinc-200 dark:border-zinc-900 p-1 rounded-full font-mono text-[9px]">
+            {(['daily', 'weekly', 'all'] as PeriodType[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => handlePeriodClick(p)}
+                className={`px-3 py-1.5 rounded-full font-black tracking-wider transition-all ${
+                  periodTab === p ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400'
+                }`}
+              >
+                {t[p]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 2. 스크롤 데이터 리스트 메인 바 (홈 화면 우측 공간을 꽉 채우도록 max-h 가변 최적화) */}
-      <div className="flex-1 overflow-y-auto max-h-[560px] lg:max-h-[590px] pr-1.5 custom-scrollbar space-y-2">
+      <div className="flex-1 overflow-y-auto max-h-[560px] lg:max-h-[590px] pr-2 custom-scrollbar space-y-2.5 overflow-x-hidden">
         {loading ? (
-          <div className="h-40 flex items-center justify-center font-mono text-[11px] text-zinc-600 tracking-widest uppercase animate-pulse">
+          <div className="h-40 flex items-center justify-center font-mono text-[10px] text-zinc-400 dark:text-zinc-600 tracking-widest uppercase animate-pulse">
             {t.loading}
           </div>
         ) : currentList.length === 0 ? (
@@ -198,69 +192,75 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
             const rank = index + 1;
             const rankStr = String(rank).padStart(2, '0');
             
-            // 명예의 전당 TOP 3 조건별 커스텀 모듈 스킨 분기
             let topSkin = {
               text: 'text-zinc-500',
-              bg: 'bg-transparent border-transparent hover:bg-zinc-900/30',
-              scoreGlow: ''
+              bg: 'bg-transparent border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-900/30',
+              scoreGlow: 'text-zinc-800 dark:text-zinc-300'
             };
 
             if (rank === 1) {
               topSkin = {
-                text: 'text-amber-400 font-black',
-                bg: 'bg-amber-500/5 border-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.02)]',
-                scoreGlow: 'text-amber-400 font-black'
+                text: 'text-amber-500 font-black',
+                bg: 'bg-amber-50/50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.03)]',
+                scoreGlow: 'text-amber-500 font-black drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]'
               };
             } else if (rank === 2) {
               topSkin = {
-                text: 'text-zinc-300 font-black',
-                bg: 'bg-zinc-800/10 border-zinc-800/60',
-                scoreGlow: 'text-zinc-300 font-bold'
+                text: 'text-zinc-500 dark:text-zinc-300 font-black',
+                bg: 'bg-zinc-50 dark:bg-zinc-800/20 border-zinc-200 dark:border-zinc-700/50',
+                scoreGlow: 'text-zinc-700 dark:text-zinc-300 font-bold'
               };
             } else if (rank === 3) {
               topSkin = {
-                text: 'text-amber-600 font-black',
-                bg: 'bg-amber-700/5 border-amber-700/10',
-                scoreGlow: 'text-amber-600 font-bold'
+                text: 'text-orange-500 font-black',
+                bg: 'bg-orange-50/50 dark:bg-orange-500/5 border-orange-200 dark:border-orange-500/20',
+                scoreGlow: 'text-orange-600 dark:text-orange-500 font-bold'
               };
             }
 
             return (
               <div
                 key={item.id}
-                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${topSkin.bg} ${rank > 3 ? theme.border + ' ' + theme.hoverBg : ''}`}
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${topSkin.bg} ${rank > 3 ? 'border-zinc-100 dark:border-zinc-800/40' : ''}`}
               >
                 <div className="flex items-center gap-4">
-                  {/* 등수 플래그 */}
-                  <span className={`font-mono text-xs text-center w-6 tracking-wide ${rank <= 3 ? topSkin.text : 'text-zinc-600'}`}>
+                  <span className={`font-mono text-[11px] text-center w-6 tracking-wider ${rank <= 3 ? topSkin.text : 'text-zinc-400 dark:text-zinc-600 font-bold'}`}>
                     {rankStr}
                   </span>
                   
-                  {/* 프로필 이미지 노드 */}
                   <div className="flex items-center gap-3">
                     {item.photoURL ? (
                       <img 
                         src={item.photoURL} 
                         alt={item.displayName} 
-                        className="w-5 h-5 rounded-md border border-zinc-900 object-cover"
+                        className={`w-5 h-5 rounded-md border object-cover ${rank === 1 ? 'border-amber-400/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'border-zinc-200 dark:border-zinc-800'}`}
                       />
                     ) : (
-                      <div className="w-5 h-5 rounded-md bg-zinc-900 border border-zinc-800 font-mono text-[9px] font-black flex items-center justify-center text-zinc-500 uppercase">
+                      <div className={`w-5 h-5 rounded-md font-mono text-[9px] font-black flex items-center justify-center uppercase ${rank === 1 ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500'}`}>
                         {item.displayName[0]}
                       </div>
                     )}
-                    <span className={`text-xs tracking-tight ${rank <= 3 ? 'font-bold text-zinc-200' : 'font-medium text-zinc-400'}`}>
-                      {item.displayName}
-                    </span>
+
+                    {/* 💡 1등 전용 네온 전광판 애니메이션 (공간 제약 완벽 해결) */}
+                    {rank === 1 ? (
+                      <div className="w-[100px] sm:w-[130px] overflow-hidden marquee-mask flex items-center">
+                        <span className="animate-marquee font-mono text-[12px] text-amber-600 dark:text-amber-400 font-black tracking-[0.1em] uppercase">
+                          {item.displayName}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className={`text-[13px] tracking-tight ${rank <= 3 ? 'font-bold text-black dark:text-zinc-100' : 'font-semibold text-zinc-700 dark:text-zinc-400'}`}>
+                        {item.displayName}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* 최종 점수 피드백 보드 */}
-                <div className="text-right font-mono">
-                  <span className={`text-xs tabular-nums ${rank <= 3 ? topSkin.scoreGlow : theme.text + ' font-bold'}`}>
+                <div className="text-right font-mono flex items-baseline gap-1">
+                  <span className={`text-sm tabular-nums ${rank <= 3 ? topSkin.scoreGlow : 'text-zinc-800 dark:text-zinc-400 font-bold'}`}>
                     {item.score}
                   </span>
-                  <span className="text-[9px] text-zinc-600 font-bold ml-1 uppercase">{currentUnit}</span>
+                  <span className={`text-[9px] font-bold uppercase pb-[1px] ${rank === 1 ? 'text-amber-500/70' : 'text-zinc-400 dark:text-zinc-600'}`}>{currentUnit}</span>
                 </div>
               </div>
             );
@@ -268,8 +268,24 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
         )}
       </div>
 
-      {/* 모던 스크롤바 인젝션 */}
       <style jsx global>{`
+        /* 전광판 (Marquee) 애니메이션 CSS */
+        @keyframes marquee {
+          0% { transform: translateX(130px); }
+          100% { transform: translateX(-100%); }
+        }
+        .animate-marquee {
+          display: inline-block;
+          white-space: nowrap;
+          animation: marquee 5s linear infinite;
+        }
+        /* 양끝을 흐리게 지워주는 그라데이션 마스크 */
+        .marquee-mask {
+          -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
+        }
+
+        /* 커스텀 스크롤바 */
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
@@ -277,11 +293,17 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #18181b;
+          background: #3f3f46;
           border-radius: 8px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #52525b;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
           background: #27272a;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #3f3f46;
         }
       `}</style>
     </div>
