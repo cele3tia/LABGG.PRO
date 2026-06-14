@@ -2,21 +2,66 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // 💡 라우팅용 내비게이터 임포트
+import { useRouter } from 'next/navigation';
 import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, updateProfile, signOut, User } from 'firebase/auth'; // 💡 signOut 임포트 완료
+import { onAuthStateChanged, updateProfile, signOut, User } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
+// 💡 레벨별 필요 경험치 공식
 const getNextXpForLevel = (lv: number): number => {
   return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
 };
 
+// 💡 10레벨 단위 뱃지 색상 반환 함수
 const getLevelBadgeColor = (lv: number): string => {
   if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30'; 
   if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30'; 
   if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';     
   if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'; 
   return 'text-zinc-400 bg-zinc-900 border-zinc-800'; 
+};
+
+// 📊 [NEW] 경쟁전 누적 LP 기반 프로필 티어 변환 엔진
+interface TierStructure {
+  name: string;
+  division: string;
+  localLp: number;
+  color: string;
+}
+
+const getTierFromLp = (totalLp: number): TierStructure => {
+  if (totalLp < 0) totalLp = 0;
+  
+  const TIERS = [
+    { name: 'IRON', color: 'text-zinc-500 border-zinc-800 bg-zinc-500/5' },
+    { name: 'BRONZE', color: 'text-amber-700 border-amber-900 bg-amber-700/5' },
+    { name: 'SILVER', color: 'text-slate-300 border-slate-700 bg-slate-300/5' },
+    { name: 'GOLD', color: 'text-yellow-400 border-yellow-600/40 bg-yellow-400/5' },
+    { name: 'PLATINUM', color: 'text-emerald-400 border-emerald-600/40 bg-emerald-400/5' },
+    { name: 'DIAMOND', color: 'text-cyan-400 border-cyan-500/40 bg-cyan-400/5' },
+  ];
+
+  if (totalLp >= 1800) {
+    return {
+      name: 'MASTER',
+      division: '',
+      localLp: totalLp - 1800,
+      color: 'text-purple-400 border-purple-500/40 bg-purple-500/5 shadow-[0_0_15px_rgba(168,85,247,0.15)] font-black'
+    };
+  }
+
+  const tierIndex = Math.floor(totalLp / 300);
+  const remainder = totalLp % 300;
+  const divisionIndex = Math.floor(remainder / 100);
+  const localLp = remainder % 100;
+  const divisionMap = ['III', 'II', 'I'];
+  
+  return {
+    name: TIERS[tierIndex].name,
+    division: divisionMap[divisionIndex],
+    localLp: localLp,
+    color: TIERS[tierIndex].color
+  };
 };
 
 const TRANSLATIONS = {
@@ -27,7 +72,7 @@ const TRANSLATIONS = {
     homeBtn: '홈으로 가기',
     lvl: 'Lv.',
     editBtn: '닉네임 변경',
-    logoutBtn: '로그아웃', // 💡 국문 레이블 추가
+    logoutBtn: '로그아웃', 
     saveBtn: '적용',
     cancelBtn: '취소',
     saving: '저장 중..',
@@ -37,6 +82,7 @@ const TRANSLATIONS = {
     statReactionDesc: '시각 반응 속도 최고 기록',
     statCps: 'CLICKS PER SECOND',
     statCpsDesc: '초당 클릭 속도 최고 기록',
+    tierTitle: 'COMPETITIVE RANK RATING', // 티어 타이틀 추가
     collectionTitle: 'AVAILABLE TITLES COLLECTION',
     equipped: '장착중',
     equipBtn: '장착',
@@ -61,7 +107,7 @@ const TRANSLATIONS = {
     homeBtn: 'Go to Home',
     lvl: 'Lv.',
     editBtn: 'Edit Nickname',
-    logoutBtn: 'Sign Out', // 💡 영문 레이블 추가
+    logoutBtn: 'Sign Out', 
     saveBtn: 'Apply',
     cancelBtn: 'Cancel',
     saving: 'Saving...',
@@ -71,6 +117,7 @@ const TRANSLATIONS = {
     statReactionDesc: 'Personal best visual reaction time',
     statCps: 'CLICKS PER SECOND',
     statCpsDesc: 'Personal best clicks per second',
+    tierTitle: 'COMPETITIVE RANK RATING',
     collectionTitle: 'AVAILABLE TITLES COLLECTION',
     equipped: 'Equipped',
     equipBtn: 'Equip',
@@ -91,7 +138,7 @@ const TRANSLATIONS = {
 };
 
 export default function ProfilePage() {
-  const router = useRouter(); // 💡 라우터 인스턴스 활성화
+  const router = useRouter();
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -100,6 +147,7 @@ export default function ProfilePage() {
   const [cpsBest, setCpsBest] = useState<number>(0);
   const [level, setLevel] = useState<number>(1);
   const [xp, setXp] = useState<number>(0);
+  const [rankedLp, setRankedLp] = useState<number>(300); // 💡 경쟁전 LP 상태 추가 (기본 300)
   const [currentTitleId, setCurrentTitleId] = useState<string>(''); 
   const [isDevFromDb, setIsDevFromDb] = useState<boolean>(false);
   
@@ -123,6 +171,7 @@ export default function ProfilePage() {
           setCpsBest(data.cpsBest || 0);
           setLevel(data.level || 1);
           setXp(data.xp || 0);
+          setRankedLp(data.rankedLp !== undefined ? data.rankedLp : 300); // 💡 LP 필드 매핑
           setCurrentTitleId(data.currentTitle || ''); 
           setIsDevFromDb(data.isDev === true);
           if (data.displayName) setDisplayName(data.displayName);
@@ -157,11 +206,10 @@ export default function ProfilePage() {
     }
   };
 
-  // 💡 [NEW] 파이어베이스 로그아웃 코어 제어 핸들러
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push('/'); // 로그아웃 성공 시 메인 홈 화면으로 다이렉트 이주
+      router.push('/');
     } catch (e) {
       console.error("로그아웃 실패:", e);
     }
@@ -181,16 +229,20 @@ export default function ProfilePage() {
   if (loading) return <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center text-xs tracking-widest uppercase">{t.loading}</div>;
   if (!user) return <div className="min-h-screen bg-black text-zinc-100 font-sans flex flex-col items-center justify-center p-6 text-center space-y-4"><p className="text-zinc-400 font-mono text-xs">UNAUTHORIZED ACCESS</p><Link href="/" className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all">{t.homeBtn}</Link></div>;
 
-  const isDevUser = isDevFromDb || user.email === 'admin@lab.gg' || user.email?.includes('dev') || process.env.NODE_ENV === 'development';
+  // 🎯 [요구사항 반영] 내 이메일이 leehyeon110919@gmail.com 이면 전용 개발자 칭호 강제 마스터 언락 권한 부여
+  const isDevUser = isDevFromDb || user.email === 'leehyeon110919@gmail.com' || user.email === 'admin@lab.gg' || user.email?.includes('dev') || process.env.NODE_ENV === 'development';
+  
   const hasAi = reactionBest > 0 && reactionBest <= 150 && cpsBest >= 13;
   const hasGodspeed = hasAi || (reactionBest > 0 && reactionBest <= 180) || cpsBest >= 10;
   const hasFast = hasGodspeed || (reactionBest > 0 && reactionBest <= 230) || cpsBest >= 7;
 
-  // 💡 Record 타입을 부여해 하단 루프에서 무지성 @ts-ignore를 안 써도 타입 에러가 안 나게 대수술 완료
   const unlockedTitles: Record<string, boolean> = { dev: isDevUser, ai: hasAi, godspeed: hasGodspeed, fast: hasFast, newbie: true };
   const activeTitle = TITLES_LIST.find(t => t.id === currentTitleId);
   const nextXpNeeded = getNextXpForLevel(level);
   const xpPercentage = Math.min(100, Math.round((xp / nextXpNeeded) * 100));
+
+  // 📈 내 현재 실시간 랭크 티어 계산용 객체
+  const myTier = getTierFromLp(rankedLp);
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none">
@@ -217,6 +269,11 @@ export default function ProfilePage() {
                   {t.lvl}{level}
                 </span>
 
+                {/* 📊 [NEW] 유저 메인 프로필에 실시간 연동 각인되는 미니멀 티어 뱃지 프레임 */}
+                <span className={`font-mono text-xs font-black px-2.5 py-0.5 rounded-md border tracking-wider uppercase ${myTier.color}`}>
+                  {myTier.name} {myTier.division}
+                </span>
+
                 {activeTitle ? (
                   <span className={`text-xs font-sans font-bold px-3 py-1 rounded-md border tracking-wide uppercase ${activeTitle.color}`}>{activeTitle.text}</span>
                 ) : (
@@ -227,7 +284,6 @@ export default function ProfilePage() {
             </div>
           </div>
           
-          {/* 🛠️ 버튼 레이아웃 제어 기지 */}
           <div className="shrink-0 w-full sm:w-auto text-center sm:text-right">
             {isEditing ? (
               <div className="flex items-center justify-center sm:justify-end gap-2">
@@ -237,7 +293,6 @@ export default function ProfilePage() {
             ) : (
               <div className="flex items-center justify-center sm:justify-end gap-2">
                 <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-300 hover:text-white font-bold rounded-xl text-xs transition-all">{t.editBtn}</button>
-                {/* 🔴 [NEW] 게이밍 텍스처를 살린 모던 로그아웃 디바이스 버튼 장착 */}
                 <button onClick={handleLogout} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-950/10 font-bold rounded-xl text-xs transition-all">
                   {t.logoutBtn}
                 </button>
@@ -246,6 +301,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* 레벨 레일 경험치 바 */}
         <div className="bg-zinc-950 border border-zinc-900 px-5 py-4 rounded-xl space-y-2">
           <div className="flex justify-between items-center font-mono text-xs">
             <span className="text-zinc-400 font-bold">{t.xpTitle}</span>
@@ -256,6 +312,23 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* 📊 [NEW] 요구사항 반영: 프로필 하단에 탑재된 전술 경쟁전 랭킹 포인트 진척도 LP 바 장치 */}
+        <div className="bg-zinc-950 border border-zinc-900 p-5 rounded-2xl space-y-3">
+          <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.tierTitle}</div>
+          <div className="px-5 py-4 bg-zinc-950/40 border border-zinc-900/60 rounded-xl font-mono space-y-2.5">
+            <div className="flex justify-between items-center text-xs">
+              <span className={`font-black tracking-widest ${myTier.color}`}>{myTier.name} {myTier.division}</span>
+              <span className="text-zinc-300 font-black tabular-nums">{myTier.name === 'MASTER' ? `${rankedLp} TOTAL LP` : `${myTier.localLp} / 100 LP`}</span>
+            </div>
+            {myTier.name !== 'MASTER' && (
+              <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-zinc-100 h-full rounded-full transition-all duration-700" style={{ width: `${myTier.localLp}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 개인 레코드 매트릭스 보드 */}
         <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 space-y-3">
           <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.statsTitle}</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -276,6 +349,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* 수집된 칭호 인벤토리 그리드 */}
         <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 space-y-3">
           <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.collectionTitle}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -300,7 +374,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-      <div className="w-full max-w-4xl mx-auto text-center font-mono text-[10px] text-zinc-600 font-bold uppercase tracking-widest">LABGG CORE PROFILE ENGINE v3.0</div>
+      <div className="w-full max-w-4xl mx-auto text-center font-mono text-[10px] text-zinc-600 font-bold uppercase tracking-widest">LABGG CORE PROFILE ENGINE v3.5</div>
     </div>
   );
 }

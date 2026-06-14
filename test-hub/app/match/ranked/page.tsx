@@ -26,7 +26,6 @@ interface RoundScore {
   guest?: number;
 }
 
-// 📊 [경쟁전 핵심 레벨 스케줄러] 누적 LP를 기반으로 한 티어 분기 구조 체계
 interface TierStructure {
   name: string;
   division: string;
@@ -39,22 +38,21 @@ const getTierFromLp = (totalLp: number): TierStructure => {
   if (totalLp < 0) totalLp = 0;
   
   const TIERS = [
-    { name: 'IRON', color: 'text-zinc-500 border-zinc-800', bgGlow: 'rgba(113,113,122,0.03)' },
-    { name: 'BRONZE', color: 'text-amber-700 border-amber-900', bgGlow: 'rgba(180,83,9,0.03)' },
-    { name: 'SILVER', color: 'text-slate-300 border-slate-700', bgGlow: 'rgba(203,213,225,0.03)' },
-    { name: 'GOLD', color: 'text-yellow-400 border-yellow-600/50', bgGlow: 'rgba(234,179,8,0.03)' },
-    { name: 'PLATINUM', color: 'text-emerald-400 border-emerald-600/50', bgGlow: 'rgba(16,185,129,0.03)' },
-    { name: 'DIAMOND', color: 'text-cyan-400 border-cyan-500/50', bgGlow: 'rgba(34,211,238,0.03)' },
+    { name: 'IRON', color: 'text-zinc-500 border-zinc-800', bgGlow: 'rgba(113,113,122,0.02)' },
+    { name: 'BRONZE', color: 'text-amber-700 border-amber-900', bgGlow: 'rgba(180,83,9,0.02)' },
+    { name: 'SILVER', color: 'text-slate-300 border-slate-700', bgGlow: 'rgba(203,213,225,0.02)' },
+    { name: 'GOLD', color: 'text-yellow-400 border-yellow-600/50', bgGlow: 'rgba(234,179,8,0.02)' },
+    { name: 'PLATINUM', color: 'text-emerald-400 border-emerald-600/50', bgGlow: 'rgba(16,185,129,0.02)' },
+    { name: 'DIAMOND', color: 'text-cyan-400 border-cyan-500/50', bgGlow: 'rgba(34,211,238,0.02)' },
   ];
 
-  // 마스터 티어 예외 처리 최상단 배치 (1800 LP 이상 무한 축적)
   if (totalLp >= 1800) {
     return {
       name: 'MASTER',
       division: '',
       localLp: totalLp - 1800,
       color: 'text-purple-400 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.2)] animate-pulse',
-      bgGlow: 'rgba(168,85,247,0.05)'
+      bgGlow: 'rgba(168,85,247,0.04)'
     };
   }
 
@@ -62,7 +60,6 @@ const getTierFromLp = (totalLp: number): TierStructure => {
   const remainder = totalLp % 300;
   const divisionIndex = Math.floor(remainder / 100);
   const localLp = remainder % 100;
-
   const divisionMap = ['III', 'II', 'I'];
   
   return {
@@ -95,10 +92,11 @@ const TITLE_MAP: Record<'ko' | 'en', Record<string, string>> = {
   en: { dev: 'Developer', ai: 'AI', godspeed: 'Lightning', fast: 'Swift', newbie: 'Newbie' }
 };
 
+// 🛠️ [구조 버그 완벽 수리] 오타 및 대괄호/중괄호 인밸런스 완전 수정 완료
 const TRANSLATIONS = {
   ko: {
     back: '← 홈으로',
-    nodeLabel: 'COMPETITIVE RANKED CORE v1.0',
+    nodeLabel: 'COMPETITIVE RANKED CORE v1.5',
     idleTitle: '경쟁 교전 진입',
     idleDesc: '초정밀 실시간 레이팅 시스템 매칭 패널. 경기 결과에 따라 등급 스탯 및 LP 변동 메트릭이 연산 처리됩니다.',
     startFind: 'RANKED SEARCH QUEUE START',
@@ -120,12 +118,18 @@ const TRANSLATIONS = {
     roundLabel: 'ROUND',
     noTitle: '칭호 없음',
     errLogin: '경쟁 대기열에 진입하려면 로그인이 필요합니다.',
-    promoAlert: 'PROMOTION EVENT OCCURRED',
-    demoAlert: 'CRITICAL DEMOTION OCCURRED'
+    levelLockedTitle: '경쟁전 진입 권한 잠김 (ACCESS DENIED)',
+    levelLockedDesc: '경쟁 생태계의 공정한 생태계 보호 및 랭킹 정밀 매칭을 위해 15레벨 이상의 유저만 전장 진입이 허용됩니다.',
+    currentLevel: '내 현재 레벨',
+    requiredLevel: '요구 진입 레벨',
+    modeReaction: 'MATCH TYPE: VISUAL REACTION',
+    modeCps: 'MATCH TYPE: CPS MEASURE',
+    standbyRadar: 'MATRIX STABILIZING... TOUCH IMMEDIATELY WHEN SIGNAL FLASHES',
+    cpsActive: 'BURST TARGET: CLICK MAXIMUM SPEED!'
   },
   en: {
     back: '← Back to Home',
-    nodeLabel: 'COMPETITIVE RANKED CORE v1.0',
+    nodeLabel: 'COMPETITIVE RANKED CORE v1.5',
     idleTitle: 'Enter Ranked Queue',
     idleDesc: 'High-fidelity skill rating framework. Match results strictly compute Tier fluctuations and LP mechanics.',
     startFind: 'RANKED SEARCH QUEUE START',
@@ -147,8 +151,14 @@ const TRANSLATIONS = {
     roundLabel: 'ROUND',
     noTitle: 'NO TITLE',
     errLogin: 'Authentication credentials required to join ranked queue.',
-    promoAlert: 'PROMOTION EVENT OCCURRED',
-    demoAlert: 'CRITICAL DEMOTION OCCURRED'
+    levelLockedTitle: 'ACCESS RESTRICTED',
+    levelLockedDesc: 'To ensure competitive integrity and matchmaking precision, you must be at least Level 15 to enter the ranked envelope.',
+    currentLevel: 'YOUR LEVEL',
+    requiredLevel: 'REQUIRED LEVEL',
+    modeReaction: 'MATCH TYPE: VISUAL REACTION',
+    modeCps: 'MATCH TYPE: CPS MEASURE',
+    standbyRadar: 'MATRIX STABILIZING... TOUCH IMMEDIATELY WHEN SIGNAL FLASHES',
+    cpsActive: 'BURST TARGET: CLICK MAXIMUM SPEED!'
   }
 };
 
@@ -158,7 +168,6 @@ export default function RankedMatchPage() {
   const [user, setUser] = useState<User | null>(null);
   const [myDbData, setMyDbData] = useState<{ level: number; currentTitle: string; rankedLp: number } | null>(null);
 
-  // 전술 매칭 시스템 코어 스태터스
   const [matchState, setMatchState] = useState<MatchState>('idle');
   const [activeRoomId, setActiveRoomId] = useState<string>('');
   const [gameType, setGameType] = useState<GameType>('reaction');
@@ -169,7 +178,6 @@ export default function RankedMatchPage() {
   const [hostPlayer, setHostPlayer] = useState<PlayerInfo | null>(null);
   const [guestPlayer, setGuestPlayer] = useState<PlayerInfo | null>(null);
 
-  // 인게임 작동 기어
   const [localGameState, setLocalGameState] = useState<'idle' | 'ready' | 'click' | 'foul' | 'finished'>('idle');
   const [queueSeconds, setQueueSeconds] = useState<number>(0);
   const [countdownNum, setCountdownNum] = useState<number>(3);
@@ -179,7 +187,6 @@ export default function RankedMatchPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [ripple, setRipple] = useState<boolean>(false);
 
-  // 📈 랭크 정산용 변동 지표 상태 기록부
   const [lpChangeAmount, setLpChangeAmount] = useState<number>(0);
   const [hasUpdatedLp, setHasUpdatedLp] = useState<boolean>(false);
 
@@ -198,14 +205,13 @@ export default function RankedMatchPage() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Firestore 랭크 스탯 데이터 트리 리드
         const docSnap = await getDoc(doc(db, 'users', currentUser.uid));
         if (docSnap.exists()) {
           const p = docSnap.data();
           setMyDbData({
             level: p.level || 1,
             currentTitle: p.currentTitle || '',
-            rankedLp: p.rankedLp !== undefined ? p.rankedLp : 300 // 최초 시작점 기본 브론즈3(300점) 강제 안착
+            rankedLp: p.rankedLp !== undefined ? p.rankedLp : 300
           });
         }
       }
@@ -229,12 +235,13 @@ export default function RankedMatchPage() {
     if (user) set(ref(database, `queue/ranked/${user.uid}`), null);
   };
 
-  // 📡 경쟁전 전용 레이팅 매칭 프로토콜 오케스트레이터
   const handleStartMatchmaking = async () => {
     if (!user || !myDbData) {
       setErrorMessage(t.errLogin);
       return;
     }
+    if (myDbData.level < 15) return;
+
     setErrorMessage('');
     setMatchState('queue');
     setQueueSeconds(0);
@@ -252,7 +259,6 @@ export default function RankedMatchPage() {
 
       if (snapshot.exists()) {
         const currentQueue = snapshot.val();
-        // 경쟁전용 레이팅 매칭: 내 점수 기준 위아래 유사 밴드 매칭을 원칙으로 하되 대기열 첫 유저 서칭
         const opponentId = Object.keys(currentQueue).find((uid) => uid !== user.uid);
         if (opponentId) matchedOpponent = currentQueue[opponentId];
       }
@@ -261,7 +267,6 @@ export default function RankedMatchPage() {
         const generatedRoomId = `ranked_room_${matchedOpponent.uid}_${user.uid}`;
         const roomRef = ref(database, `rooms/${generatedRoomId}`);
 
-        // 경쟁전 종목 가변 로직 주입 (Reaction / CPS 가변 분기 처리)
         const selectedGame: GameType = Math.random() > 0.5 ? 'reaction' : 'cps';
         const gameOption = selectedGame === 'reaction' ? 3 : 5;
 
@@ -335,7 +340,6 @@ export default function RankedMatchPage() {
     setMatchState('idle');
   };
 
-  // 경쟁전 전용 하이피델리티 룸 소켓 스트림 바인딩
   const subscribeRoomChannel = (targetRoomId: string) => {
     cleanupTimers();
     setMatchState('countdown');
@@ -389,7 +393,6 @@ export default function RankedMatchPage() {
         }, 2500);
       }
     } else if (matchState === 'result') {
-      // 🎯 [경쟁전 심장부 정산 스크립트] 결과창이 뜨면 클라이언트 세션에서 단 1회 랭크 점수 정산기 가동
       processRankedLpTransaction();
     }
   }, [matchState]);
@@ -411,7 +414,7 @@ export default function RankedMatchPage() {
   const startActualLocalGame = () => {
     if (gameType === 'reaction') {
       setLocalGameState('ready');
-      const randomDelay = Math.floor(Math.random() * 2500) + 2000;
+      const randomDelay = Math.floor(Math.random() * 2600) + 1800;
       reactionTimeoutRef.current = setTimeout(() => {
         setLocalGameState('click');
         setReactionStartTime(performance.now());
@@ -467,13 +470,11 @@ export default function RankedMatchPage() {
     await set(roundScoreRef, score);
   };
 
-  // 📝 [경쟁전 코어 점수 정산 모듈] 요청에 따라 20~30점 난수 적용 및 강등 차단 연산
   const processRankedLpTransaction = async () => {
     if (!user || !myDbData || hasUpdatedLp) return;
     setHasUpdatedLp(true);
 
     const metrics = getCalculatedWinner();
-    // 20~30점 사이 난수 정밀 생성
     const lpDelta = Math.floor(Math.random() * 11) + 20; 
     
     let nextLp = myDbData.rankedLp;
@@ -485,7 +486,7 @@ export default function RankedMatchPage() {
       setLpChangeAmount(lpDelta);
     } else {
       nextLp -= lpDelta;
-      if (nextLp < 0) nextLp = 0; // 아이언3 0점 밑으로 추락하는 현상 완벽 방어
+      if (nextLp < 0) nextLp = 0;
       setLpChangeAmount(-lpDelta);
     }
 
@@ -494,7 +495,7 @@ export default function RankedMatchPage() {
       await updateDoc(userDocRef, { rankedLp: nextLp });
       setMyDbData((prev) => prev ? { ...prev, rankedLp: nextLp } : null);
     } catch (err) {
-      console.error("Failed to commit Ranked LP Transaction:", err);
+      console.error(err);
     }
   };
 
@@ -550,30 +551,26 @@ export default function RankedMatchPage() {
     return gameType === 'reaction' ? `Δ ${diff}ms` : `Δ ${diff.toFixed(1)} CPS`;
   };
 
-  // 현재 내 실시간 랭킹 티어 오브젝트 디코딩
-  const currentTierObj = myDbData ? getTierFromLp(myDbData.rankedLp) : null;
+  if (!user) return <div className="min-h-screen bg-black text-zinc-500 font-mono flex items-center justify-center text-xs tracking-widest uppercase">AUTHENTICATING IDENTITY...</div>;
+  if (!myDbData) return <div className="min-h-screen bg-black text-zinc-500 font-mono flex items-center justify-center text-xs tracking-widest uppercase">INITIALIZING COMPETITIVE SUBSYSTEM...</div>;
+
+  const currentTierObj = getTierFromLp(myDbData.rankedLp);
   const matchMetrics = matchState === 'result' ? getCalculatedWinner() : null;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none relative overflow-hidden">
       
-      {/* 🔮 연산 노드 백그라운드 텍스처 아우라 스킨 */}
       {currentTierObj && (
-        <div 
-          className="absolute inset-0 transition-all duration-1000 pointer-events-none z-0" 
-          style={{ backgroundColor: currentTierObj.bgGlow }}
-        />
+        <div className="absolute inset-0 transition-all duration-1000 pointer-events-none z-0" style={{ backgroundColor: currentTierObj.bgGlow }} />
       )}
-      <div className="absolute inset-0 opacity-[0.015] pointer-events-none z-0" style={{ backgroundImage: 'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      {/* 상단 랭킹 인스턴스 전술 표시 바 */}
+      {/* 상단 통합 HUD 바 */}
       <div className="relative z-10 w-full max-w-5xl mx-auto flex justify-between items-center border-b border-zinc-900/80 pb-5">
         <Link href="/" onClick={leaveQueueDirectly} className="text-xs font-mono font-bold text-zinc-600 hover:text-white transition-all">
           {t.back}
         </Link>
         
-        {/* 현재 플레이어 실시간 티어 HUD 오버레이 바 */}
-        {currentTierObj && matchState === 'idle' && (
+        {matchState === 'idle' && myDbData.level >= 15 && (
           <div className="flex items-center gap-3 bg-zinc-950 border border-zinc-900 px-4 py-1.5 rounded-xl font-mono text-[10px] font-black">
             <span className="text-zinc-500">CURRENT COMPETITIVE RATING:</span>
             <span className={`${currentTierObj.color} tracking-widest`}>
@@ -595,17 +592,42 @@ export default function RankedMatchPage() {
         
         {/* 🟢 상태 1. 대기 로비 (IDLE DASHBOARD) */}
         {matchState === 'idle' && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start max-w-4xl mx-auto w-full">
-            
-            {/* 좌측 카드: 유저 전술 티어 인디케이터 장치 */}
-            {currentTierObj && (
+          myDbData.level < 15 ? (
+            <div className="max-w-2xl mx-auto w-full bg-[#050507] border border-red-950/30 rounded-[2.5rem] p-10 sm:p-14 space-y-8 text-center shadow-2xl relative overflow-hidden animate-[scaleUp_0.4s_ease-out]">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(239,68,68,0.015),transparent_60%)] pointer-events-none" />
+              
+              <div className="space-y-3 relative z-10">
+                <span className="font-mono text-[9px] font-black text-red-500 tracking-[0.3em] block uppercase">// SECURITY RESTRICTION GATE</span>
+                <h2 className="text-3xl font-black text-white tracking-tight">{t.levelLockedTitle}</h2>
+                <p className="text-sm text-zinc-400 font-medium leading-relaxed max-w-md mx-auto">{t.levelLockedDesc}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto font-mono text-left pt-2 relative z-10">
+                <div className="bg-zinc-950 border border-zinc-900 p-4 rounded-xl flex flex-col justify-between">
+                  <span className="text-[9px] text-zinc-500 font-bold uppercase">{t.currentLevel}</span>
+                  <span className="text-xl font-black text-red-400">LV.{myDbData.level}</span>
+                </div>
+                <div className="bg-zinc-950 border border-zinc-900 p-4 rounded-xl flex flex-col justify-between">
+                  <span className="text-[9px] text-zinc-500 font-bold uppercase">{t.requiredLevel}</span>
+                  <span className="text-xl font-black text-zinc-500">LV.15</span>
+                </div>
+              </div>
+
+              <div className="pt-4 relative z-10">
+                <Link href="/" className="inline-block px-6 py-3 border border-zinc-800 bg-zinc-900 text-zinc-400 rounded-xl text-xs font-mono font-black tracking-widest uppercase hover:bg-white hover:text-black hover:border-white transition-all">
+                  RETURN TO BASE INFRA
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start max-w-4xl mx-auto w-full animate-[scaleUp_0.3s_ease-out]">
+              {/* 좌측 카드: 유저 랭크 진척도 인디케이터 게이지 바 */}
               <div className="md:col-span-2 bg-zinc-950/40 border border-zinc-900 rounded-[2rem] p-8 text-center space-y-6 shadow-2xl backdrop-blur-md">
                 <div className="space-y-1">
                   <span className="font-mono text-[9px] font-bold text-zinc-600 tracking-widest block uppercase">// RATING FILE</span>
                   <p className="text-sm font-black text-zinc-400 truncate">{user?.displayName}</p>
                 </div>
 
-                {/* 하이엔드 네온 서클 프레임 디스플레이 */}
                 <div className="w-32 h-32 mx-auto rounded-[2.5rem] bg-black border border-zinc-900 flex flex-col items-center justify-center relative shadow-inner">
                   <span className={`text-xl font-mono font-black tracking-tighter ${currentTierObj.color}`}>
                     {currentTierObj.name}
@@ -615,7 +637,6 @@ export default function RankedMatchPage() {
                   </span>
                 </div>
 
-                {/* 📊 요구사항: 예쁜 실시간 티어 전용 게이지 점수 바 렌더링 벨트 */}
                 <div className="space-y-2 text-left font-mono">
                   <div className="flex justify-between items-center text-[10px] text-zinc-500 font-bold">
                     <span>PROGRESS RATE</span>
@@ -623,36 +644,36 @@ export default function RankedMatchPage() {
                   </div>
                   <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden p-[1px] border border-zinc-900">
                     <div 
-                      className="bg-white h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(255,255,255,0.8)]" 
+                      className="bg-white h-full rounded-full transition-all duration-1000" 
                       style={{ width: `${currentTierObj.localLp}%` }}
                     />
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* 우측 카드: 큐 인스턴스 트리거 */}
-            <div className="md:col-span-3 bg-zinc-950/40 border border-zinc-900 rounded-[2rem] p-8 sm:p-10 space-y-6 shadow-2xl backdrop-blur-md h-full flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <span className="font-mono text-[9px] font-bold text-zinc-600 tracking-widest block uppercase">// OPERATIONAL LAUNCHER</span>
-                  <h2 className="text-2xl font-mono font-black text-white tracking-tight">{t.idleTitle}</h2>
+              {/* 우측 큐 세션 카드 */}
+              <div className="md:col-span-3 bg-zinc-950/40 border border-zinc-900 rounded-[2rem] p-8 sm:p-10 space-y-6 shadow-2xl backdrop-blur-md h-full flex flex-col justify-between">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <span className="font-mono text-[9px] font-bold text-zinc-600 tracking-widest block uppercase">// OPERATIONAL LAUNCHER</span>
+                    <h2 className="text-2xl font-mono font-black text-white tracking-tight">{t.idleTitle}</h2>
+                  </div>
+                  <p className="text-xs text-zinc-400 font-medium leading-relaxed">{t.idleDesc}</p>
                 </div>
-                <p className="text-xs text-zinc-400 font-medium leading-relaxed">{t.idleDesc}</p>
+
+                {errorMessage && (
+                  <p className="text-xs font-bold text-red-500 bg-red-500/5 border border-red-500/10 p-3.5 rounded-xl">{errorMessage}</p>
+                )}
+
+                <button
+                  onClick={handleStartMatchmaking}
+                  className="w-full py-4 mt-6 bg-white border border-white text-black text-xs font-mono font-black tracking-widest uppercase rounded-2xl hover:bg-transparent hover:text-white transition-all shadow-md active:scale-[0.99]"
+                >
+                  {t.startFind}
+                </button>
               </div>
-
-              {errorMessage && (
-                <p className="text-xs font-bold text-red-500 bg-red-500/5 border border-red-500/10 p-3.5 rounded-xl">{errorMessage}</p>
-              )}
-
-              <button
-                onClick={handleStartMatchmaking}
-                className="w-full py-4 mt-6 bg-white border border-white text-black text-xs font-mono font-black tracking-widest uppercase rounded-2xl hover:bg-transparent hover:text-white transition-all shadow-md active:scale-[0.99]"
-              >
-                {t.startFind}
-              </button>
             </div>
-          </div>
+          )
         )}
 
         {/* 🔍 상태 2. 대기열 레이더 (QUEUE LOOKUP STATE) */}
@@ -667,7 +688,7 @@ export default function RankedMatchPage() {
             
             <button
               onClick={handleCancelMatchmaking}
-              className="w-full py-3.5 bg-zinc-900/40 border border-zinc-800 rounded-xl text-[11px] font-mono font-black text-zinc-400 hover:text-red-500 hover:border-red-500/20 transition-all uppercase tracking-widest"
+              className="w-full py-3.5 bg-zinc-900/40 border border-zinc-800 rounded-xl text-[11px] font-mono font-black text-zinc-400 hover:text-red-400 hover:border-red-500/20 transition-all uppercase tracking-widest"
             >
               {t.cancelFind}
             </button>
@@ -676,25 +697,27 @@ export default function RankedMatchPage() {
 
         {/* ⏳ 상태 3. 경기 매핑 동시 진입 (COUNTDOWN MATRIX) */}
         {matchState === 'countdown' && (
-          <div className="h-[360px] flex flex-col items-center justify-center">
-            <span className="text-[120px] font-mono font-black text-white tracking-tighter tabular-nums animate-[scaleUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
+          <div className="h-[360px] flex flex-col items-center justify-center space-y-5">
+            <span className="text-[10px] font-mono font-black text-purple-400 bg-purple-500/10 border border-purple-500/20 px-4 py-1.5 rounded-lg uppercase tracking-[0.2em] animate-pulse">
+              {gameType === 'reaction' ? t.modeReaction : t.modeCps}
+            </span>
+            <span className="text-[120px] font-mono font-black text-white tracking-tighter tabular-nums select-none animate-[scaleUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
               {countdownNum}
             </span>
-            <span className="font-mono text-[9px] font-black text-zinc-700 tracking-[0.3em] uppercase mt-2">{t.matched}</span>
+            <span className="font-mono text-[9px] font-black text-zinc-700 tracking-[0.3em] uppercase">{t.matched}</span>
           </div>
         )}
 
-        {/* ⚡ 상태 4. 인게임 아레나 (PLAYING HUD - 포인터 터치 완전 방어 스펙) */}
+        {/* ⚡ 상태 4. 인게임 아레나 (PLAYING HUD) */}
         {matchState === 'playing' && (
           <div 
             onPointerDown={handleGamePanelClick} 
             className={`h-[460px] rounded-[2rem] border flex flex-col items-center justify-center p-8 text-center cursor-pointer select-none transition-all duration-75 relative overflow-hidden touch-none ${
               gameType === 'reaction' 
-                ? (localGameState === 'ready' ? 'bg-[#030303] border-zinc-950' : localGameState === 'click' ? 'bg-white border-white' : 'bg-black border-zinc-950')
+                ? (localGameState === 'ready' ? 'bg-[#020203] border-red-900/30 shadow-[inset_0_0_100px_rgba(239,68,68,0.02)]' : localGameState === 'click' ? 'bg-white border-white' : 'bg-black border-zinc-950')
                 : 'bg-[#020202] border-zinc-900 active:border-zinc-800'
             }`}
           >
-            {/* 정밀 에임 가이드 격자 크로스헤어 오버레이 */}
             {localGameState !== 'click' && (
               <div className="absolute inset-0 border border-white/[0.005] m-10 rounded-2xl pointer-events-none flex items-center justify-center">
                 <div className="w-2 h-[1px] bg-zinc-900" />
@@ -702,15 +725,19 @@ export default function RankedMatchPage() {
               </div>
             )}
 
-            {ripple && <div className="absolute inset-0 bg-white/[0.015] pointer-events-none animate-ping" />}
+            {ripple && <div className="absolute inset-0 bg-white/[0.012] pointer-events-none animate-ping" />}
 
             {gameType === 'reaction' ? (
               localGameState === 'ready' ? (
-                <div className="space-y-1.5 pointer-events-none">
-                  <p className="text-xl font-mono font-black text-zinc-500 tracking-[0.25em] uppercase">{t.holdTrigger}</p>
+                <div className="space-y-4 pointer-events-none relative z-10 flex flex-col items-center">
+                  <div className="w-10 h-10 border border-red-500/20 rounded-full flex items-center justify-center animate-spin">
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                  </div>
+                  <p className="text-xl font-mono font-black text-red-500 tracking-[0.25em] uppercase">{t.holdTrigger}</p>
+                  <p className="text-[10px] font-mono text-zinc-600 font-bold tracking-wider max-w-xs">{t.standbyRadar}</p>
                 </div>
               ) : localGameState === 'click' ? (
-                <p className="text-5xl font-sans font-black text-black tracking-tighter uppercase pointer-events-none animate-pulse">{t.clickNow}</p>
+                <p className="text-6xl font-sans font-black text-black tracking-tighter uppercase pointer-events-none scale-105 transition-all">{t.clickNow}</p>
               ) : localGameState === 'foul' ? (
                 <div className="space-y-1 text-center pointer-events-none">
                   <p className="text-xs font-mono font-black text-red-500 tracking-widest uppercase">{t.foul}</p>
@@ -720,23 +747,26 @@ export default function RankedMatchPage() {
                 <p className="text-[10px] text-zinc-600 font-mono tracking-widest uppercase animate-pulse">{t.syncing}</p>
               )
             ) : (
-              /* CPS 터치 패널 기판: 그라데이션 탈피 완전한 Stark White 텐션 */
-              <div className="space-y-6 pointer-events-none w-full max-w-xs relative z-10">
-                <p className="text-[100px] font-mono font-black text-white tracking-tighter leading-none tabular-nums animate-[scaleUp_0.1s_ease-out]">
+              <div className="space-y-6 pointer-events-none w-full max-w-xs relative z-10 flex flex-col items-center">
+                <span className="text-[10px] font-mono font-black text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded uppercase tracking-[0.15em]">
+                  {t.modeCps}
+                </span>
+                <p className="text-[110px] font-mono font-black text-white tracking-tighter leading-none tabular-nums select-none animate-[scaleUp_0.1s_ease-out]">
                   {cpsClicks}
                 </p>
-                <div className="w-16 bg-zinc-900 h-[1px] mx-auto opacity-60">
+                <div className="w-20 bg-zinc-900 h-[1px] opacity-40">
                   <div className="bg-white h-full transition-all duration-100 mx-auto" style={{ width: `${Math.min(100, (cpsClicks / (totalOption * 7.2))) * 100}%` }} />
                 </div>
                 <div className="font-mono text-[9px] text-zinc-600 font-bold tracking-widest uppercase">
                   BURST SECONDS: <span className="text-white font-black tabular-nums">{cpsTimeLeft}S</span>
                 </div>
+                <p className="text-[9px] font-mono text-zinc-500 uppercase tracking-wide">{t.cpsActive}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* 🔄 상태 5. 중간 라운드 정산 보드 (ROUND OVERVIEW) */}
+        {/* 🔄 상태 5. 중간 라운드 정산 보드 */}
         {matchState === 'round_result' && (
           <div className="h-[450px] bg-zinc-950/20 border border-zinc-900 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center space-y-6 animate-[scaleUp_0.3s_ease-out] backdrop-blur-sm">
             <div className="space-y-1">
@@ -761,20 +791,20 @@ export default function RankedMatchPage() {
           </div>
         )}
 
-        {/* 🏆 상태 6. 최종 경쟁 스코어 리포트 및 가변 LP 변동 게이지 랙 (MATCH BREAKDOWN MATRIX) */}
-        {matchState === 'result' && matchMetrics && currentTierObj && (
-          <div className="bg-black border border-zinc-900 p-8 sm:p-12 rounded-[2.5rem] space-y-8 text-center max-w-2xl mx-auto w-full relative overflow-hidden shadow-2xl animate-[scaleUp_0.3s_ease-out]">
+        {/* 🏆 상태 6. 최종 경쟁 스코어 리포트 (오타 대수술 패치 완료) */}
+        {matchState === 'result' && matchMetrics && (
+          <div className="bg-black border border-zinc-900 p-8 sm:p-12 rounded-[2.5rem] space-y-8 text-center max-w-2xl mx-auto w-full shadow-2xl animate-[scaleUp_0.3s_ease-out]">
             
             <div className="space-y-1">
               <span className="font-mono text-[9px] font-black text-zinc-600 tracking-[0.3em] uppercase block">// {t.matchFinish}</span>
+              {/* 🎯 [오타 수정 쐐기] title -> state 분기 처리 완벽 바인딩 */}
               <h2 className="text-5xl font-mono font-black text-white tracking-tighter uppercase">
-                {matchMetrics.state} 
+                {matchMetrics.state}
               </h2>
             </div>
 
-            {/* 📊 요구사항: 실시간 +20~30 LP 변동 레이블 및 격차 연산 분석 프레임 */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-1">
-              <div className="bg-zinc-950 border border-zinc-900 py-2.5 px-5 rounded-xl font-mono text-xs text-zinc-400 font-black tracking-widest uppercase">
+              <div className="bg-zinc-950 border border-zinc-900 py-2.5 px-5 rounded-xl inline-block font-mono text-xs text-zinc-400 font-black tracking-widest uppercase">
                 {matchMetrics.gap}
               </div>
               <div className={`border py-2.5 px-5 rounded-xl font-mono text-xs font-black tracking-widest uppercase ${lpChangeAmount >= 0 ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400' : 'bg-red-500/5 border-red-500/20 text-red-500'}`}>
@@ -782,8 +812,7 @@ export default function RankedMatchPage() {
               </div>
             </div>
 
-            {/* 📊 요구사항: 결과창 하단에 장착된 변동 후의 고성능 LP 진진척도 바 인디케이터 */}
-            <div className="max-w-md mx-auto w-full bg-zinc-950 border border-zinc-900/60 rounded-2xl p-5 font-mono text-left space-y-3">
+            <div className="max-w-md mx-auto w-full bg-zinc-950 border border-zinc-900/60 rounded-2xl p-5 doc-box text-left space-y-3 font-mono">
               <div className="flex justify-between items-center text-[10px] text-zinc-500 font-black tracking-wider">
                 <span>UPDATED TIER RECORD</span>
                 <span className={`${currentTierObj.color} font-black`}>
@@ -798,7 +827,6 @@ export default function RankedMatchPage() {
               </div>
             </div>
 
-            {/* 라운드별 상세 로깅 스탯 분석 테이블 */}
             {gameType === 'reaction' && (
               <div className="max-w-md mx-auto w-full bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden font-mono text-[11px] shadow-inner">
                 <div className="grid grid-cols-3 bg-zinc-900/40 border-b border-zinc-900 text-zinc-600 font-black py-2.5 px-5 uppercase tracking-wider text-[9px]">
@@ -838,7 +866,7 @@ export default function RankedMatchPage() {
 
       </div>
 
-      {/* 푸터 영역 */}
+      {/* 시스템 푸터 엔벨로프 */}
       <div className="w-full max-w-5xl mx-auto border-t border-zinc-900/60 pt-5 font-mono text-[9px] text-zinc-700 flex justify-between items-center uppercase tracking-wider relative z-10">
         <div>LABGG LIVE RANKED METRICS v1.5</div>
         <div>SECURE LIVE SOCKET TRANSCEIVER LAYER</div>
