@@ -144,7 +144,6 @@ export default function CpsTestPage() {
         } else {
           const updateData: any = { xp: currentXp, level: currentLevel, updatedAt: serverTimestamp() };
           if (isNewBest) updateData.cpsBest = finalCps;
-          // 🛠️ [FIX] 기존에 빠져있던 userDocRef 인자를 첫 번째 자리에 정확히 채워넣었습니다.
           transaction.update(userDocRef, updateData);
         }
 
@@ -185,17 +184,11 @@ export default function CpsTestPage() {
     timerRef.current = requestAnimationFrame(updateTimer);
   };
 
-  useEffect(() => {
-    if (gameState === 'all-done') {
-      if (timerRef.current) cancelAnimationFrame(timerRef.current);
-      setTimeLeft(0);
-      const finalCps = parseFloat((clickCount / totalTime).toFixed(2));
-      saveFinalCpsAndProcessXp(finalCps);
-      lastActionTimeRef.current = performance.now();
-    }
-  }, [gameState]);
-
   const handleScreenMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 💡 좌클릭(0)이 아니면 무조건 리턴해서 우클릭/휠클릭 꼼수 방지!
+    if (e.button !== 0) return;
+    
+    // 매크로(오토마우스) 같은 스크립트 이벤트 방어
     if (e.nativeEvent && e.nativeEvent.isTrusted === false) return;
 
     if (gameState === 'waiting') {
@@ -217,6 +210,16 @@ export default function CpsTestPage() {
     setGameState('waiting');
     lastActionTimeRef.current = performance.now();
   };
+
+  useEffect(() => {
+    if (gameState === 'all-done') {
+      if (timerRef.current) cancelAnimationFrame(timerRef.current);
+      setTimeLeft(0);
+      const finalCps = parseFloat((clickCount / totalTime).toFixed(2));
+      saveFinalCpsAndProcessXp(finalCps);
+      lastActionTimeRef.current = performance.now();
+    }
+  }, [gameState]);
 
   const elapsedTime = gameState === 'all-done' ? totalTime : (totalTime - timeLeft);
   const currentCps = clickCount > 0 && elapsedTime > 0
@@ -347,6 +350,7 @@ export default function CpsTestPage() {
         {/* ⚡ 클릭 보드 본체 */}
         <div 
           onMouseDown={handleScreenMouseDown}
+          onContextMenu={(e) => e.preventDefault()} // 💡 우클릭 시 컨텍스트 메뉴(창) 뜨는 현상 완전 차단
           className={`h-[420px] rounded-2xl border-2 flex flex-col items-center justify-center p-8 text-center cursor-pointer select-none transition-all duration-70 ${
             isBouncing ? 'scale-[0.97] border-emerald-400 bg-emerald-500/10' : 'active:scale-[0.985]'
           } ${bgColors[gameState]}`}
