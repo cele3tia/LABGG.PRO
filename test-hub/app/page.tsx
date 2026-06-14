@@ -11,7 +11,6 @@ import { getUserStats } from './lib/recordService';
 
 type ThemeMode = 'dark' | 'light';
 
-// 💡 타입스크립트 억까 완전 차단 명세서
 interface CompleteThemeSchema {
   bg: string;
   nav: string;
@@ -60,8 +59,8 @@ const TRANSLATIONS = {
     loginBtn: '로그인',
     profileBtn: '프로필 보기',
     lvl: 'Lv.',
-    multiplayerTitle: 'MULTIPLAYER COMMAND CENTER',
-    singleplayerTitle: 'SINGLEPLAYER TRAINING SUITE',
+    multiplayerTitle: '멀티플레이어',
+    singleplayerTitle: '싱글플레이어',
     multiplayerBadge: '핵심 전장',
     modes: {
       normal: { name: '일반 매칭 (Casual Match)', desc: '레이팅 부담 없이 다른 유저들과 가볍게 피지컬 매치 진행' },
@@ -94,8 +93,8 @@ const TRANSLATIONS = {
     loginBtn: 'SIGN IN',
     profileBtn: 'MY PROFILE',
     lvl: 'Lv.',
-    multiplayerTitle: 'MULTIPLAYER COMMAND CENTER',
-    singleplayerTitle: 'SINGLEPLAYER TRAINING SUITE',
+    multiplayerTitle: 'MULTIPLAYER',
+    singleplayerTitle: 'SINGLEPLAYER',
     multiplayerBadge: 'CORE ARENA',
     modes: {
       normal: { name: 'Casual Match', desc: 'Lightweight physical match against other clickers without rating risks.' },
@@ -129,7 +128,6 @@ export default function LandingPage() {
   const [dbDisplayName, setDbDisplayName] = useState<string>('');
   const [fbStats, setFbStats] = useState({ reactionBest: '---', cpsBest: '---' });
 
-  // 듀얼 슬라이더 상태 관리
   const [activeMultiSlide, setActiveMultiSlide] = useState(0);
   const [activeSingleSlide, setActiveSingleSlide] = useState(0);
 
@@ -171,13 +169,20 @@ export default function LandingPage() {
     return () => unsubscribe();
   }, []);
 
-  // 🎯 멀티플레이어 5초 자동 슬라이드 타이머
+  // 🎯 스마트 오토 슬라이드 로직 (수동 클릭 시 5초 타이머 리셋)
   useEffect(() => {
-    const multiTimer = setInterval(() => {
+    const multiTimer = setTimeout(() => {
       setActiveMultiSlide((prev) => (prev === 2 ? 0 : prev + 1));
     }, 5000);
-    return () => clearInterval(multiTimer);
-  }, []);
+    return () => clearTimeout(multiTimer); // activeMultiSlide가 변할 때마다 기존 타이머 파괴 후 재생성
+  }, [activeMultiSlide]);
+
+  useEffect(() => {
+    const singleTimer = setTimeout(() => {
+      setActiveSingleSlide((prev) => (prev === 1 ? 0 : prev + 1));
+    }, 5000);
+    return () => clearTimeout(singleTimer); // activeSingleSlide가 변할 때마다 기존 타이머 파괴 후 재생성
+  }, [activeSingleSlide]);
 
   const handleLangChange = (newLang: 'ko' | 'en') => {
     setLang(newLang);
@@ -192,7 +197,7 @@ export default function LandingPage() {
 
   const t = TRANSLATIONS[lang];
 
-  // 1. 멀티플레이어 모드 (일반, 경쟁, 커스텀) 배열
+  // 1. 멀티플레이어 모드 배열 (이너 네온 섀도우 및 픽셀 도트 컬러 추가)
   const MULTI_SUITE = [
     {
       id: 'casual',
@@ -200,10 +205,11 @@ export default function LandingPage() {
       label: 'CASUAL MATCH',
       desc: t.modes.normal.desc,
       path: '/match/normal',
-      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(16,185,129,0.03)]' : 'shadow-sm',
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
-      btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+      btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
+      innerGlow: theme === 'dark' ? 'shadow-[inset_0_0_80px_rgba(16,185,129,0.035)]' : 'shadow-[inset_0_0_80px_rgba(16,185,129,0.02)]',
+      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
     },
     {
       id: 'ranked',
@@ -211,10 +217,11 @@ export default function LandingPage() {
       label: 'COMPETITIVE RANKED',
       desc: t.modes.ranked.desc,
       path: '/match/ranked',
-      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(244,63,94,0.03)]' : 'shadow-sm',
       activeColor: 'text-rose-500 dark:text-rose-400',
       activeBg: 'bg-rose-500',
-      btnGlow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]'
+      btnGlow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]',
+      innerGlow: theme === 'dark' ? 'shadow-[inset_0_0_80px_rgba(244,63,94,0.035)]' : 'shadow-[inset_0_0_80px_rgba(244,63,94,0.02)]',
+      dotColor: theme === 'dark' ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.08)'
     },
     {
       id: 'custom',
@@ -222,14 +229,15 @@ export default function LandingPage() {
       label: 'PRIVATE CUSTOM',
       desc: t.modes.custom.desc,
       path: '/match/custom',
-      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(168,85,247,0.03)]' : 'shadow-sm',
       activeColor: 'text-purple-500 dark:text-purple-400',
       activeBg: 'bg-purple-500',
-      btnGlow: 'shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+      btnGlow: 'shadow-[0_0_15px_rgba(168,85,247,0.2)]',
+      innerGlow: theme === 'dark' ? 'shadow-[inset_0_0_80px_rgba(168,85,247,0.035)]' : 'shadow-[inset_0_0_80px_rgba(168,85,247,0.02)]',
+      dotColor: theme === 'dark' ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)'
     }
   ];
 
-  // 2. 싱글플레이어 모드 (반속, CPS) 배열
+  // 2. 싱글플레이어 모드 배열 (이너 네온 섀도우 및 픽셀 도트 컬러 추가)
   const SINGLE_SUITE = [
     {
       id: 'reaction',
@@ -239,10 +247,11 @@ export default function LandingPage() {
       stat: t.tests.reaction.stat,
       myScore: fbStats.reactionBest,
       path: '/reaction',
-      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(16,185,129,0.03)]' : 'shadow-[0_4px_30px_rgba(16,185,129,0.01)]',
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
-      btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+      btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
+      innerGlow: theme === 'dark' ? 'shadow-[inset_0_0_80px_rgba(16,185,129,0.035)]' : 'shadow-[inset_0_0_80px_rgba(16,185,129,0.02)]',
+      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
     },
     {
       id: 'cps',
@@ -252,10 +261,11 @@ export default function LandingPage() {
       stat: t.tests.cps.stat,
       myScore: fbStats.cpsBest,
       path: '/cps',
-      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(34,211,238,0.04)]' : 'shadow-[0_4px_30px_rgba(34,211,238,0.01)]',
       activeColor: 'text-cyan-500 dark:text-cyan-400',
       activeBg: 'bg-cyan-500',
-      btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]'
+      btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]',
+      innerGlow: theme === 'dark' ? 'shadow-[inset_0_0_80px_rgba(34,211,238,0.035)]' : 'shadow-[inset_0_0_80px_rgba(34,211,238,0.02)]',
+      dotColor: theme === 'dark' ? 'rgba(34,211,238,0.15)' : 'rgba(34,211,238,0.08)'
     }
   ];
 
@@ -265,7 +275,6 @@ export default function LandingPage() {
   const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
   const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
 
-  // 🌓 라이트/다크 모드 스타일
   const s: CompleteThemeSchema = {
     bg: theme === 'dark' ? 'bg-[#000000] text-[#e4e4e7]' : 'bg-[#f5f6f9] text-[#1c1917]',
     nav: theme === 'dark' ? 'bg-[#000000] border-zinc-900' : 'bg-[#ffffff] border-zinc-200/80 shadow-sm',
@@ -293,7 +302,6 @@ export default function LandingPage() {
     <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight transition-colors duration-300`}>
       
       <div className="absolute inset-x-0 bottom-0 top-24 z-0 pointer-events-none select-none overflow-hidden">
-        <div className={`absolute inset-0 transition-all duration-1000 ${SINGLE_SUITE[activeSingleSlide].id === 'reaction' ? 'bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.005),transparent_50%)]' : 'bg-[radial-gradient(circle_at_30%_30%,rgba(34,211,238,0.005),transparent_50%)]'}`} />
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
 
@@ -374,7 +382,7 @@ export default function LandingPage() {
           
           <div className="lg:col-span-7 flex flex-col justify-between gap-10">
             
-            {/* 🎯 멀티플레이어(일반/랭크/커스텀) 슬라이더 구조로 전면 교체 */}
+            {/* 🎯 멀티플레이어 슬라이더 구역 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2.5 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
@@ -391,9 +399,12 @@ export default function LandingPage() {
                     <div key={mode.id} className="min-w-full p-0.5 flex flex-col">
                       <Link 
                         href={mode.path} 
-                        className={`relative border p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 ${mode.glow} flex-1 flex flex-col justify-between ${s.sliderCard}`}
+                        className={`relative border p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 flex-1 flex flex-col justify-between overflow-hidden ${s.sliderCard} ${mode.innerGlow}`}
                       >
-                        <div className="space-y-2 pt-1">
+                        {/* 픽셀 도트 백그라운드 레이어 */}
+                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '12px 12px' }} />
+
+                        <div className="space-y-2 pt-1 relative z-10">
                           <div className="flex justify-between items-center">
                             <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
                               {mode.label}
@@ -417,7 +428,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* 멀티플레이어 하단 컨트롤러 */}
+              {/* 멀티플레이어 컨트롤 패널 */}
               <div className="flex items-center justify-between px-2 pt-1">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-2">
@@ -445,7 +456,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* 🎯 싱글플레이어(반속/CPS) 슬라이더 구조 */}
+            {/* 🎯 싱글플레이어 슬라이더 구역 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
@@ -461,9 +472,12 @@ export default function LandingPage() {
                     <div key={test.id} className="min-w-full p-0.5 flex flex-col">
                       <Link 
                         href={test.path} 
-                        className={`relative border p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 ${test.glow} flex-1 flex flex-col justify-between ${s.sliderCard}`}
+                        className={`relative border p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 flex-1 flex flex-col justify-between overflow-hidden ${s.sliderCard} ${test.innerGlow}`}
                       >
-                        <div className="space-y-2 pt-0.5">
+                        {/* 픽셀 도트 백그라운드 레이어 */}
+                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '12px 12px' }} />
+
+                        <div className="space-y-2 pt-0.5 relative z-10">
                           <div className="flex justify-between items-center">
                             <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
                               {test.label}
@@ -482,7 +496,7 @@ export default function LandingPage() {
                           </p>
                         </div>
 
-                        <div className={`flex flex-col sm:flex-row gap-4 sm:gap-6 border-t pt-5 font-mono text-xs ${s.sliderMutedText}`}>
+                        <div className={`flex flex-col sm:flex-row gap-4 sm:gap-6 border-t pt-5 font-mono text-xs relative z-10 ${s.sliderMutedText}`}>
                           <div className="space-y-0.5">
                             <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.standard}</span>
                             <span className={`${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'} font-black`}>{test.stat}</span>
@@ -498,7 +512,7 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* 싱글플레이어 하단 컨트롤러 */}
+              {/* 싱글플레이어 컨트롤 패널 */}
               <div className="flex items-center justify-between px-2 pt-1">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-2">
