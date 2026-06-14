@@ -11,7 +11,8 @@ import { getUserStats } from './lib/recordService';
 
 type ThemeMode = 'dark' | 'light';
 
-interface ThemeStyles {
+// 💡 타입스크립트 억까 완전 차단 명세서
+interface CompleteThemeSchema {
   bg: string;
   nav: string;
   logoText: string;
@@ -24,15 +25,6 @@ interface ThemeStyles {
   desc: string;
   textDesc: string;
   sectionTitle: string;
-  masterBox: string;
-  card: string;
-  cardCasual: string;
-  cardRanked: string;
-  cardCustom: string;
-  cardMainText: string;
-  cardRankedMainText: string;
-  cardCustomMainText: string;
-  cardSubText: string;
   sliderCard: string;
   sliderTitle: string;
   sliderMutedText: string;
@@ -44,10 +36,10 @@ interface ThemeStyles {
 }
 
 const getLevelBadgeColor = (lv: number): string => {
-  if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]';
-  if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]';
-  if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]';
-  if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]';
+  if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+  if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30';
+  if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';
+  if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
   return 'text-zinc-400 bg-zinc-900 border-zinc-800';
 };
 
@@ -70,7 +62,7 @@ const TRANSLATIONS = {
     lvl: 'Lv.',
     multiplayerTitle: 'MULTIPLAYER COMMAND CENTER',
     singleplayerTitle: 'SINGLEPLAYER TRAINING SUITE',
-    multiplayerBadge: '핵심 교전',
+    multiplayerBadge: '핵심 전장',
     modes: {
       normal: { name: '일반 매칭 (Casual Match)', desc: '레이팅 부담 없이 다른 유저들과 가볍게 피지컬 매치 진행' },
       ranked: { name: '경쟁 레이팅 (Ranked Match)', desc: '공식 티어와 랭킹 점수가 반영되는 하드코어 진검승부' },
@@ -137,7 +129,9 @@ export default function LandingPage() {
   const [dbDisplayName, setDbDisplayName] = useState<string>('');
   const [fbStats, setFbStats] = useState({ reactionBest: '---', cpsBest: '---' });
 
-  const [activeSlide, setActiveSlide] = useState(0);
+  // 듀얼 슬라이더 상태 관리
+  const [activeMultiSlide, setActiveMultiSlide] = useState(0);
+  const [activeSingleSlide, setActiveSingleSlide] = useState(0);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
@@ -177,6 +171,14 @@ export default function LandingPage() {
     return () => unsubscribe();
   }, []);
 
+  // 🎯 멀티플레이어 5초 자동 슬라이드 타이머
+  useEffect(() => {
+    const multiTimer = setInterval(() => {
+      setActiveMultiSlide((prev) => (prev === 2 ? 0 : prev + 1));
+    }, 5000);
+    return () => clearInterval(multiTimer);
+  }, []);
+
   const handleLangChange = (newLang: 'ko' | 'en') => {
     setLang(newLang);
     localStorage.setItem('site-lang', newLang);
@@ -190,7 +192,45 @@ export default function LandingPage() {
 
   const t = TRANSLATIONS[lang];
 
-  const TEST_SUITE = [
+  // 1. 멀티플레이어 모드 (일반, 경쟁, 커스텀) 배열
+  const MULTI_SUITE = [
+    {
+      id: 'casual',
+      name: t.modes.normal.name,
+      label: 'CASUAL MATCH',
+      desc: t.modes.normal.desc,
+      path: '/match/normal',
+      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(16,185,129,0.03)]' : 'shadow-sm',
+      activeColor: 'text-emerald-500 dark:text-emerald-400',
+      activeBg: 'bg-emerald-500',
+      btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+    },
+    {
+      id: 'ranked',
+      name: t.modes.ranked.name,
+      label: 'COMPETITIVE RANKED',
+      desc: t.modes.ranked.desc,
+      path: '/match/ranked',
+      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(244,63,94,0.03)]' : 'shadow-sm',
+      activeColor: 'text-rose-500 dark:text-rose-400',
+      activeBg: 'bg-rose-500',
+      btnGlow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]'
+    },
+    {
+      id: 'custom',
+      name: t.modes.custom.name,
+      label: 'PRIVATE CUSTOM',
+      desc: t.modes.custom.desc,
+      path: '/match/custom',
+      glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(168,85,247,0.03)]' : 'shadow-sm',
+      activeColor: 'text-purple-500 dark:text-purple-400',
+      activeBg: 'bg-purple-500',
+      btnGlow: 'shadow-[0_0_15px_rgba(168,85,247,0.2)]'
+    }
+  ];
+
+  // 2. 싱글플레이어 모드 (반속, CPS) 배열
+  const SINGLE_SUITE = [
     {
       id: 'reaction',
       name: t.tests.reaction.name,
@@ -200,7 +240,6 @@ export default function LandingPage() {
       myScore: fbStats.reactionBest,
       path: '/reaction',
       glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(16,185,129,0.03)]' : 'shadow-[0_4px_30px_rgba(16,185,129,0.01)]',
-      border: theme === 'dark' ? 'border-zinc-800/80' : 'border-zinc-200',
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]'
@@ -214,17 +253,20 @@ export default function LandingPage() {
       myScore: fbStats.cpsBest,
       path: '/cps',
       glow: theme === 'dark' ? 'shadow-[0_0_50px_rgba(34,211,238,0.04)]' : 'shadow-[0_4px_30px_rgba(34,211,238,0.01)]',
-      border: theme === 'dark' ? 'border-zinc-800/80' : 'border-zinc-200',
       activeColor: 'text-cyan-500 dark:text-cyan-400',
       activeBg: 'bg-cyan-500',
       btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]'
     }
   ];
 
-  const handlePrev = () => setActiveSlide((prev) => (prev === 0 ? TEST_SUITE.length - 1 : prev - 1));
-  const handleNext = () => setActiveSlide((prev) => (prev === TEST_SUITE.length - 1 ? 0 : prev + 1));
+  const handleMultiPrev = () => setActiveMultiSlide((prev) => (prev === 0 ? MULTI_SUITE.length - 1 : prev - 1));
+  const handleMultiNext = () => setActiveMultiSlide((prev) => (prev === MULTI_SUITE.length - 1 ? 0 : prev + 1));
 
-  const s: ThemeStyles = {
+  const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
+  const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
+
+  // 🌓 라이트/다크 모드 스타일
+  const s: CompleteThemeSchema = {
     bg: theme === 'dark' ? 'bg-[#000000] text-[#e4e4e7]' : 'bg-[#f5f6f9] text-[#1c1917]',
     nav: theme === 'dark' ? 'bg-[#000000] border-zinc-900' : 'bg-[#ffffff] border-zinc-200/80 shadow-sm',
     logoText: theme === 'dark' ? 'text-white' : 'text-black',
@@ -237,28 +279,12 @@ export default function LandingPage() {
     desc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
     textDesc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
     sectionTitle: theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400',
-    
-    // 🛠️ 마스터 박스 둥근 모서리 및 패딩 규격화
-    masterBox: theme === 'dark' ? 'bg-[#050507] border-zinc-900 p-6 rounded-3xl' : 'bg-white border-zinc-200/70 p-6 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.015)]',
-    
-    // 🛠️ 내부 카드 완벽한 픽셀 규격 통일 (p-5 및 rounded-xl 고정)
-    card: theme === 'dark' ? 'bg-[#0c0c0e] border-zinc-800/60 hover:border-zinc-700' : 'bg-[#fafafa] border-zinc-200 hover:border-zinc-300 shadow-sm',
-    cardCasual: 'hover:bg-emerald-500/[0.005]',
-    cardRanked: 'hover:bg-rose-500/[0.005]',
-    cardCustom: 'hover:bg-purple-500/[0.005]',
-    
-    // 🛠️ 내부 카드 텍스트 사이즈 완벽 통일 (text-[15px])
-    cardMainText: theme === 'dark' ? 'text-zinc-100 group-hover/btn:text-white' : 'text-zinc-900 group-hover/btn:text-black',
-    cardRankedMainText: theme === 'dark' ? 'text-zinc-100 group-hover/btn:text-white' : 'text-zinc-900 group-hover/btn:text-black',
-    cardCustomMainText: theme === 'dark' ? 'text-zinc-100 group-hover/btn:text-white' : 'text-zinc-900 group-hover/btn:text-black',
-    cardSubText: theme === 'dark' ? 'text-zinc-500' : 'text-zinc-500 font-medium',
-    
-    sliderCard: theme === 'dark' ? 'bg-[#050507] border-zinc-900' : 'bg-white border-zinc-200/80 shadow-sm',
+    sliderCard: theme === 'dark' ? 'bg-[#0c0c0e]/80 border-zinc-900/80 hover:border-zinc-800' : 'bg-white border-zinc-200/90 hover:border-zinc-300 shadow-[0_4px_24px_rgba(0,0,0,0.015)]',
     sliderTitle: theme === 'dark' ? 'text-white' : 'text-black',
     sliderMutedText: theme === 'dark' ? 'text-zinc-500 sm:border-zinc-900' : 'text-zinc-500 sm:border-zinc-200',
     sliderIndicatorIdle: theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-300',
     sliderArrow: theme === 'dark' ? 'bg-zinc-950 border-zinc-900 text-zinc-400 hover:text-white' : 'bg-white border-zinc-200 text-zinc-500 hover:text-black shadow-sm',
-    leaderboardBg: theme === 'dark' ? 'bg-[#050507] border-zinc-900' : 'bg-white border-zinc-200/90 shadow-sm',
+    leaderboardBg: theme === 'dark' ? 'bg-[#08080a] border-zinc-900' : 'bg-white border-zinc-200 shadow-sm',
     gridLine: theme === 'dark' ? 'linear-gradient(to right, rgba(39,39,42,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(39,39,42,0.15) 1px, transparent 1px)' : 'linear-gradient(to right, rgba(212,212,216,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(212,212,216,0.2) 1px, transparent 1px)',
     footerBorder: theme === 'dark' ? 'border-zinc-900 text-zinc-600' : 'border-zinc-200 text-zinc-400'
   };
@@ -267,7 +293,7 @@ export default function LandingPage() {
     <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight transition-colors duration-300`}>
       
       <div className="absolute inset-x-0 bottom-0 top-24 z-0 pointer-events-none select-none overflow-hidden">
-        <div className={`absolute inset-0 transition-all duration-1000 ${TEST_SUITE[activeSlide].id === 'reaction' ? 'bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.005),transparent_50%)]' : 'bg-[radial-gradient(circle_at_30%_30%,rgba(34,211,238,0.005),transparent_50%)]'}`} />
+        <div className={`absolute inset-0 transition-all duration-1000 ${SINGLE_SUITE[activeSingleSlide].id === 'reaction' ? 'bg-[radial-gradient(circle_at_30%_30%,rgba(16,185,129,0.005),transparent_50%)]' : 'bg-[radial-gradient(circle_at_30%_30%,rgba(34,211,238,0.005),transparent_50%)]'}`} />
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
 
@@ -346,105 +372,112 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
           
-          <div className="lg:col-span-7 flex flex-col justify-between gap-8">
+          <div className="lg:col-span-7 flex flex-col justify-between gap-10">
             
-            <div className="space-y-3">
+            {/* 🎯 멀티플레이어(일반/랭크/커스텀) 슬라이더 구조로 전면 교체 */}
+            <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2.5 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
                 <span>// {t.multiplayerTitle}</span>
                 <span className="text-[8px] font-sans font-black px-1.5 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded tracking-normal scale-90 origin-left">{t.multiplayerBadge}</span>
               </div>
               
-              {/* 🛠️ 마스터 외곽 박스 적용 및 내부 카드 규격(p-5, rounded-xl) 완벽 통일 */}
-              <div className={`flex flex-col gap-3 border ${s.masterBox}`}>
+              <div className="relative overflow-hidden rounded-2xl group/slider flex-1 min-h-[220px] flex flex-col">
+                <div 
+                  className="flex transition-transform duration-700 ease-[cubic-bezier(0.2,1,0.3,1)] flex-1"
+                  style={{ transform: `translateX(-${activeMultiSlide * 100}%)` }}
+                >
+                  {MULTI_SUITE.map((mode) => (
+                    <div key={mode.id} className="min-w-full p-0.5 flex flex-col">
+                      <Link 
+                        href={mode.path} 
+                        className={`relative border p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 ${mode.glow} flex-1 flex flex-col justify-between ${s.sliderCard}`}
+                      >
+                        <div className="space-y-2 pt-1">
+                          <div className="flex justify-between items-center">
+                            <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
+                              {mode.label}
+                            </span>
+                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={mode.activeColor}>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                              </svg>
+                            </div>
+                          </div>
+
+                          <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{mode.name}</h3>
+                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-3 ${s.textDesc}`}>
+                            {mode.desc}
+                          </p>
+                        </div>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 멀티플레이어 하단 컨트롤러 */}
+              <div className="flex items-center justify-between px-2 pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-2">
+                    {MULTI_SUITE.map((_, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={() => setActiveMultiSlide(idx)}
+                        className={`h-1 rounded-full transition-all duration-500 ${idx === activeMultiSlide ? `w-8 ${MULTI_SUITE[activeMultiSlide].activeBg} ${MULTI_SUITE[activeMultiSlide].btnGlow}` : `w-2.5 ${s.sliderIndicatorIdle}`}`}
+                      />
+                    ))}
+                  </div>
+                  <span className="font-mono text-[9px] font-bold text-zinc-500">
+                    0{activeMultiSlide + 1} / 0{MULTI_SUITE.length}
+                  </span>
+                </div>
                 
-                {/* 일반 매칭 */}
-                <Link 
-                  href="/match/normal"
-                  className={`group/btn relative w-full border p-5 rounded-xl transition-all text-left flex justify-between items-center ${s.card} ${s.cardCasual}`}
-                >
-                  <div className="max-w-[85%]">
-                    <span className={`text-[15px] font-bold transition-colors block mb-1 ${s.cardMainText}`}>
-                      {t.modes.normal.name}
-                    </span>
-                    <span className={`text-xs block leading-normal ${s.cardSubText}`}>
-                      {t.modes.normal.desc}
-                    </span>
-                  </div>
-                  <div className="font-mono text-[10px] font-black text-zinc-400 dark:text-zinc-600 group-hover/btn:text-black dark:group-hover/btn:text-white tracking-wider uppercase transition-colors">
-                    Casual
-                  </div>
-                </Link>
-
-                {/* 경쟁 레이팅 */}
-                <Link 
-                  href="/match/ranked"
-                  className={`group/btn relative w-full border p-5 rounded-xl transition-all text-left flex justify-between items-center ${s.card} ${s.cardRanked}`}
-                >
-                  <div className="max-w-[85%]">
-                    <span className={`text-[15px] font-bold transition-colors block mb-1 ${s.cardRankedMainText}`}>
-                      {t.modes.ranked.name}
-                    </span>
-                    <span className={`text-xs block leading-normal ${s.cardSubText}`}>
-                      {t.modes.ranked.desc}
-                    </span>
-                  </div>
-                  <div className="font-mono text-[10px] font-black text-rose-500/40 group-hover/btn:text-rose-500 tracking-widest uppercase transition-colors">
-                    Ranked
-                  </div>
-                </Link>
-
-                {/* 커스텀 매치 */}
-                <Link 
-                  href="/match/custom"
-                  className={`group/btn relative w-full border p-5 rounded-xl transition-all text-left flex justify-between items-center ${s.card} ${s.cardCustom}`}
-                >
-                  <div className="max-w-[85%]">
-                    <span className={`text-[15px] font-bold transition-colors block mb-1 ${s.cardCustomMainText}`}>
-                      {t.modes.custom.name}
-                    </span>
-                    <span className={`text-xs block leading-normal ${s.cardSubText}`}>
-                      {t.modes.custom.desc}
-                    </span>
-                  </div>
-                  <div className="font-mono text-[10px] font-black text-zinc-400 dark:text-zinc-600 group-hover/btn:text-black dark:group-hover/btn:text-white tracking-wider uppercase transition-colors">
-                    Custom
-                  </div>
-                </Link>
-
+                <div className="flex items-center gap-1.5">
+                  <button onClick={handleMultiPrev} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  </button>
+                  <button onClick={handleMultiNext} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  </button>
+                </div>
               </div>
             </div>
 
+            {/* 🎯 싱글플레이어(반속/CPS) 슬라이더 구조 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
                 // {t.singleplayerTitle}
               </div>
               
-              <div className="relative overflow-hidden rounded-3xl group/slider flex-1 min-h-[300px] border dark:border-zinc-900 flex flex-col">
+              <div className="relative overflow-hidden rounded-2xl group/slider flex-1 min-h-[260px] flex flex-col">
                 <div 
                   className="flex transition-transform duration-700 ease-[cubic-bezier(0.2,1,0.3,1)] flex-1"
-                  style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+                  style={{ transform: `translateX(-${activeSingleSlide * 100}%)` }}
                 >
-                  {TEST_SUITE.map((test) => (
+                  {SINGLE_SUITE.map((test) => (
                     <div key={test.id} className="min-w-full p-0.5 flex flex-col">
-                      <div className={`relative p-7 sm:p-9 flex-1 flex flex-col justify-between rounded-[1.4rem] ${s.sliderCard}`}>
-                        
-                        <div className="space-y-2.5 pt-0.5">
+                      <Link 
+                        href={test.path} 
+                        className={`relative border p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 ${test.glow} flex-1 flex flex-col justify-between ${s.sliderCard}`}
+                      >
+                        <div className="space-y-2 pt-0.5">
                           <div className="flex justify-between items-center">
                             <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
                               {test.label}
                             </span>
-                            <Link href={test.path} className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
+                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={test.activeColor}>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                 <polyline points="12 5 19 12 12 19"></polyline>
                               </svg>
-                            </Link>
+                            </div>
                           </div>
 
                           <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{test.name}</h3>
-                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-3 ${s.textDesc}`}>
+                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-2 ${s.textDesc}`}>
                             {test.desc}
                           </p>
                         </div>
@@ -459,33 +492,34 @@ export default function LandingPage() {
                             <span className={`font-black ${test.activeColor}`}>{test.myScore}</span>
                           </div>
                         </div>
-                      </div>
+                      </Link>
                     </div>
                   ))}
                 </div>
               </div>
 
+              {/* 싱글플레이어 하단 컨트롤러 */}
               <div className="flex items-center justify-between px-2 pt-1">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-2">
-                    {TEST_SUITE.map((_, idx) => (
+                    {SINGLE_SUITE.map((_, idx) => (
                       <button 
                         key={idx}
-                        onClick={() => setActiveSlide(idx)}
-                        className={`h-1 rounded-full transition-all duration-500 ${idx === activeSlide ? `w-8 ${TEST_SUITE[activeSlide].activeBg} ${TEST_SUITE[activeSlide].btnGlow}` : `w-2.5 ${s.sliderIndicatorIdle}`}`}
+                        onClick={() => setActiveSingleSlide(idx)}
+                        className={`h-1 rounded-full transition-all duration-500 ${idx === activeSingleSlide ? `w-8 ${SINGLE_SUITE[activeSingleSlide].activeBg} ${SINGLE_SUITE[activeSingleSlide].btnGlow}` : `w-2.5 ${s.sliderIndicatorIdle}`}`}
                       />
                     ))}
                   </div>
                   <span className="font-mono text-[9px] font-bold text-zinc-500">
-                    0{activeSlide + 1} / 0{TEST_SUITE.length}
+                    0{activeSingleSlide + 1} / 0{SINGLE_SUITE.length}
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-1.5">
-                  <button onClick={handlePrev} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
+                  <button onClick={handleSinglePrev} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   </button>
-                  <button onClick={handleNext} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
+                  <button onClick={handleSingleNext} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
                   </button>
                 </div>
