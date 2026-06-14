@@ -196,7 +196,7 @@ export default function LandingPage() {
 
   const t = TRANSLATIONS[lang];
 
-  // 💡 1. 멀티플레이어 모드 배열 (은은한 엣지 글로우 & 도트 조화)
+  // 💡 1. 엣지 글로우 제거 및 도트만 남긴 멀티플레이어 배열
   const MULTI_SUITE = [
     {
       id: 'casual',
@@ -207,9 +207,7 @@ export default function LandingPage() {
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-      borderGlow: theme === 'dark' ? 'border-zinc-800 hover:border-emerald-500/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.1)]' : 'border-zinc-200 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
-      gradientOverlay: theme === 'dark' ? 'bg-gradient-to-br from-transparent via-transparent to-emerald-500/15' : 'bg-gradient-to-br from-transparent via-transparent to-emerald-500/10',
-      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.1)'
+      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
     },
     {
       id: 'ranked',
@@ -220,9 +218,7 @@ export default function LandingPage() {
       activeColor: 'text-rose-500 dark:text-rose-400',
       activeBg: 'bg-rose-500',
       btnGlow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]',
-      borderGlow: theme === 'dark' ? 'border-zinc-800 hover:border-rose-500/30 hover:shadow-[0_0_25px_rgba(244,63,94,0.1)]' : 'border-zinc-200 hover:border-rose-500/40 hover:shadow-[0_0_20px_rgba(244,63,94,0.15)]',
-      gradientOverlay: theme === 'dark' ? 'bg-gradient-to-br from-transparent via-transparent to-rose-500/15' : 'bg-gradient-to-br from-transparent via-transparent to-rose-500/10',
-      dotColor: theme === 'dark' ? 'rgba(244,63,94,0.2)' : 'rgba(244,63,94,0.1)'
+      dotColor: theme === 'dark' ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.08)'
     },
     {
       id: 'custom',
@@ -233,13 +229,11 @@ export default function LandingPage() {
       activeColor: 'text-purple-500 dark:text-purple-400',
       activeBg: 'bg-purple-500',
       btnGlow: 'shadow-[0_0_15px_rgba(168,85,247,0.2)]',
-      borderGlow: theme === 'dark' ? 'border-zinc-800 hover:border-purple-500/30 hover:shadow-[0_0_25px_rgba(168,85,247,0.1)]' : 'border-zinc-200 hover:border-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]',
-      gradientOverlay: theme === 'dark' ? 'bg-gradient-to-br from-transparent via-transparent to-purple-500/15' : 'bg-gradient-to-br from-transparent via-transparent to-purple-500/10',
-      dotColor: theme === 'dark' ? 'rgba(168,85,247,0.2)' : 'rgba(168,85,247,0.1)'
+      dotColor: theme === 'dark' ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)'
     }
   ];
 
-  // 💡 2. 싱글플레이어 모드 배열 (은은한 엣지 글로우 & 도트 조화)
+  // 💡 2. 엣지 글로우 제거 및 도트만 남긴 싱글플레이어 배열
   const SINGLE_SUITE = [
     {
       id: 'reaction',
@@ -252,9 +246,7 @@ export default function LandingPage() {
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-      borderGlow: theme === 'dark' ? 'border-zinc-800 hover:border-emerald-500/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.1)]' : 'border-zinc-200 hover:border-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
-      gradientOverlay: theme === 'dark' ? 'bg-gradient-to-br from-transparent via-transparent to-emerald-500/15' : 'bg-gradient-to-br from-transparent via-transparent to-emerald-500/10',
-      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.1)'
+      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
     },
     {
       id: 'cps',
@@ -267,9 +259,7 @@ export default function LandingPage() {
       activeColor: 'text-cyan-500 dark:text-cyan-400',
       activeBg: 'bg-cyan-500',
       btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]',
-      borderGlow: theme === 'dark' ? 'border-zinc-800 hover:border-cyan-500/30 hover:shadow-[0_0_25px_rgba(34,211,238,0.1)]' : 'border-zinc-200 hover:border-cyan-500/40 hover:shadow-[0_0_20px_rgba(34,211,238,0.15)]',
-      gradientOverlay: theme === 'dark' ? 'bg-gradient-to-br from-transparent via-transparent to-cyan-500/15' : 'bg-gradient-to-br from-transparent via-transparent to-cyan-500/10',
-      dotColor: theme === 'dark' ? 'rgba(34,211,238,0.2)' : 'rgba(34,211,238,0.1)'
+      dotColor: theme === 'dark' ? 'rgba(34,211,238,0.15)' : 'rgba(34,211,238,0.08)'
     }
   ];
 
@@ -279,6 +269,7 @@ export default function LandingPage() {
   const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
   const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
 
+  // 💡 카드 기본 테두리(border)를 전체적으로 균일하게 복구
   const s: CompleteThemeSchema = {
     bg: theme === 'dark' ? 'bg-[#000000] text-[#e4e4e7]' : 'bg-[#f5f6f9] text-[#1c1917]',
     nav: theme === 'dark' ? 'bg-[#000000] border-zinc-900' : 'bg-[#ffffff] border-zinc-200/80 shadow-sm',
@@ -292,8 +283,7 @@ export default function LandingPage() {
     desc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
     textDesc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
     sectionTitle: theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400',
-    // 💡 카드 기본 베이스 컬러 (여기서 하드코딩된 보더를 빼고, hover 보더글로우가 부드럽게 들어가게 함)
-    sliderCard: theme === 'dark' ? 'bg-[#0c0c0e]/80' : 'bg-white',
+    sliderCard: theme === 'dark' ? 'bg-[#0c0c0e]/80 border border-zinc-800/80 hover:border-zinc-700' : 'bg-white border border-zinc-200 hover:border-zinc-300 shadow-sm',
     sliderTitle: theme === 'dark' ? 'text-white' : 'text-black',
     sliderMutedText: theme === 'dark' ? 'text-zinc-500 sm:border-zinc-900' : 'text-zinc-500 sm:border-zinc-200',
     sliderIndicatorIdle: theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-300',
@@ -404,12 +394,10 @@ export default function LandingPage() {
                     <div key={mode.id} className="min-w-full p-0.5 flex flex-col">
                       <Link 
                         href={mode.path} 
-                        className={`group relative border p-7 sm:p-9 rounded-[1.4rem] flex-1 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:scale-[1.01] ${s.sliderCard} ${mode.borderGlow}`}
+                        className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
                       >
-                        {/* 💡 1. 네온 도트 패턴 */}
-                        <div className="absolute inset-0 z-0 pointer-events-none opacity-80" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
-                        {/* 💡 2. 우측 하단으로 갈수록 은은하게 진해지는 엣지 그라데이션 */}
-                        <div className={`absolute inset-0 z-0 pointer-events-none ${mode.gradientOverlay}`} />
+                        {/* 💡 도트 패턴 유지 */}
+                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
                         <div className="space-y-2 pt-1 relative z-10">
                           <div className="flex justify-between items-center">
@@ -478,12 +466,10 @@ export default function LandingPage() {
                     <div key={test.id} className="min-w-full p-0.5 flex flex-col">
                       <Link 
                         href={test.path} 
-                        className={`group relative border p-7 sm:p-9 rounded-[1.4rem] flex-1 flex flex-col justify-between overflow-hidden transition-all duration-500 hover:scale-[1.01] ${s.sliderCard} ${test.borderGlow}`}
+                        className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
                       >
-                        {/* 💡 1. 네온 도트 패턴 */}
-                        <div className="absolute inset-0 z-0 pointer-events-none opacity-80" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
-                        {/* 💡 2. 우측 하단으로 갈수록 은은하게 진해지는 엣지 그라데이션 */}
-                        <div className={`absolute inset-0 z-0 pointer-events-none ${test.gradientOverlay}`} />
+                        {/* 💡 도트 패턴 유지 */}
+                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
                         <div className="space-y-2 pt-0.5 relative z-10">
                           <div className="flex justify-between items-center">
