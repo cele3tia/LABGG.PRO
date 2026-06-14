@@ -196,7 +196,7 @@ export default function LandingPage() {
 
   const t = TRANSLATIONS[lang];
 
-  // 💡 1. 멀티플레이어 배열 (테두리 자체에 네온 글로우 부여)
+  // 💡 1. 멀티플레이어 모드 (테두리 자체에 Gradient Glow 로직 적용)
   const MULTI_SUITE = [
     {
       id: 'casual',
@@ -207,8 +207,9 @@ export default function LandingPage() {
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-      neonBorder: theme === 'dark' ? 'border-emerald-500/30' : 'border-emerald-500/40',
-      neonGlow: theme === 'dark' ? 'shadow-[0_0_30px_rgba(16,185,129,0.05),inset_0_0_30px_rgba(16,185,129,0.06)]' : 'shadow-[0_0_20px_rgba(16,185,129,0.03),inset_0_0_20px_rgba(16,185,129,0.03)]',
+      // 테두리가 우측 하단으로 갈수록 쨍하게 빛나는 그라데이션 래퍼 클래스
+      edgeWrapperSmall: theme === 'dark' ? 'bg-gradient-to-br from-zinc-900/80 via-zinc-900/20 to-emerald-500/40 hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-emerald-500/30',
+      edgeWrapperLarge: theme === 'dark' ? 'bg-gradient-to-br from-zinc-800/50 via-zinc-800/10 to-emerald-500/80 shadow-[0_0_30px_rgba(16,185,129,0.15)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-emerald-500/60 shadow-lg',
       dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
     },
     {
@@ -220,8 +221,8 @@ export default function LandingPage() {
       activeColor: 'text-rose-500 dark:text-rose-400',
       activeBg: 'bg-rose-500',
       btnGlow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]',
-      neonBorder: theme === 'dark' ? 'border-rose-500/30' : 'border-rose-500/40',
-      neonGlow: theme === 'dark' ? 'shadow-[0_0_30px_rgba(244,63,94,0.05),inset_0_0_30px_rgba(244,63,94,0.06)]' : 'shadow-[0_0_20px_rgba(244,63,94,0.03),inset_0_0_20px_rgba(244,63,94,0.03)]',
+      edgeWrapperSmall: theme === 'dark' ? 'bg-gradient-to-br from-zinc-900/80 via-zinc-900/20 to-rose-500/40 hover:shadow-[0_0_20px_rgba(244,63,94,0.1)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-rose-500/30',
+      edgeWrapperLarge: theme === 'dark' ? 'bg-gradient-to-br from-zinc-800/50 via-zinc-800/10 to-rose-500/80 shadow-[0_0_30px_rgba(244,63,94,0.15)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-rose-500/60 shadow-lg',
       dotColor: theme === 'dark' ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.08)'
     },
     {
@@ -233,13 +234,13 @@ export default function LandingPage() {
       activeColor: 'text-purple-500 dark:text-purple-400',
       activeBg: 'bg-purple-500',
       btnGlow: 'shadow-[0_0_15px_rgba(168,85,247,0.2)]',
-      neonBorder: theme === 'dark' ? 'border-purple-500/30' : 'border-purple-500/40',
-      neonGlow: theme === 'dark' ? 'shadow-[0_0_30px_rgba(168,85,247,0.05),inset_0_0_30px_rgba(168,85,247,0.06)]' : 'shadow-[0_0_20px_rgba(168,85,247,0.03),inset_0_0_20px_rgba(168,85,247,0.03)]',
+      edgeWrapperSmall: theme === 'dark' ? 'bg-gradient-to-br from-zinc-900/80 via-zinc-900/20 to-purple-500/40 hover:shadow-[0_0_20px_rgba(168,85,247,0.1)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-purple-500/30',
+      edgeWrapperLarge: theme === 'dark' ? 'bg-gradient-to-br from-zinc-800/50 via-zinc-800/10 to-purple-500/80 shadow-[0_0_30px_rgba(168,85,247,0.15)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-purple-500/60 shadow-lg',
       dotColor: theme === 'dark' ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)'
     }
   ];
 
-  // 💡 2. 싱글플레이어 배열 (테두리 자체에 네온 글로우 부여)
+  // 💡 2. 싱글플레이어 배열 (테두리 자체에 Gradient Glow 로직 적용)
   const SINGLE_SUITE = [
     {
       id: 'reaction',
@@ -252,8 +253,7 @@ export default function LandingPage() {
       activeColor: 'text-emerald-500 dark:text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-      neonBorder: theme === 'dark' ? 'border-emerald-500/30' : 'border-emerald-500/40',
-      neonGlow: theme === 'dark' ? 'shadow-[0_0_30px_rgba(16,185,129,0.05),inset_0_0_30px_rgba(16,185,129,0.06)]' : 'shadow-[0_0_20px_rgba(16,185,129,0.03),inset_0_0_20px_rgba(16,185,129,0.03)]',
+      edgeWrapperLarge: theme === 'dark' ? 'bg-gradient-to-br from-zinc-800/50 via-zinc-800/10 to-emerald-500/80 shadow-[0_0_30px_rgba(16,185,129,0.15)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-emerald-500/60 shadow-lg',
       dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
     },
     {
@@ -267,8 +267,7 @@ export default function LandingPage() {
       activeColor: 'text-cyan-500 dark:text-cyan-400',
       activeBg: 'bg-cyan-500',
       btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]',
-      neonBorder: theme === 'dark' ? 'border-cyan-500/30' : 'border-cyan-500/40',
-      neonGlow: theme === 'dark' ? 'shadow-[0_0_30px_rgba(34,211,238,0.05),inset_0_0_30px_rgba(34,211,238,0.06)]' : 'shadow-[0_0_20px_rgba(34,211,238,0.03),inset_0_0_20px_rgba(34,211,238,0.03)]',
+      edgeWrapperLarge: theme === 'dark' ? 'bg-gradient-to-br from-zinc-800/50 via-zinc-800/10 to-cyan-500/80 shadow-[0_0_30px_rgba(34,211,238,0.15)]' : 'bg-gradient-to-br from-zinc-200/80 via-zinc-200/50 to-cyan-500/60 shadow-lg',
       dotColor: theme === 'dark' ? 'rgba(34,211,238,0.15)' : 'rgba(34,211,238,0.08)'
     }
   ];
@@ -279,7 +278,6 @@ export default function LandingPage() {
   const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
   const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
 
-  // 💡 기존의 딱딱한 border 속성을 제거하고 카드 배경색만 담당하게 수정
   const s: CompleteThemeSchema = {
     bg: theme === 'dark' ? 'bg-[#000000] text-[#e4e4e7]' : 'bg-[#f5f6f9] text-[#1c1917]',
     nav: theme === 'dark' ? 'bg-[#000000] border-zinc-900' : 'bg-[#ffffff] border-zinc-200/80 shadow-sm',
@@ -293,9 +291,11 @@ export default function LandingPage() {
     desc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
     textDesc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
     sectionTitle: theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400',
-    sliderCard: theme === 'dark' ? 'bg-[#0c0c0e]/80 hover:bg-[#0c0c0e]' : 'bg-white hover:bg-zinc-50/50',
+    
+    // 내부 컨텐츠 컬러
+    sliderCard: theme === 'dark' ? 'bg-[#0a0a0c]' : 'bg-[#fafafa]',
     sliderTitle: theme === 'dark' ? 'text-white' : 'text-black',
-    sliderMutedText: theme === 'dark' ? 'text-zinc-500 sm:border-zinc-900' : 'text-zinc-500 sm:border-zinc-200',
+    sliderMutedText: theme === 'dark' ? 'text-zinc-500 sm:border-zinc-900/60' : 'text-zinc-500 sm:border-zinc-200/80',
     sliderIndicatorIdle: theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-300',
     sliderArrow: theme === 'dark' ? 'bg-zinc-950 border-zinc-900 text-zinc-400 hover:text-white' : 'bg-white border-zinc-200 text-zinc-500 hover:text-black shadow-sm',
     leaderboardBg: theme === 'dark' ? 'bg-[#08080a] border-zinc-900' : 'bg-white border-zinc-200 shadow-sm',
@@ -387,7 +387,7 @@ export default function LandingPage() {
           
           <div className="lg:col-span-7 flex flex-col justify-between gap-10">
             
-            {/* 멀티플레이어 슬라이더 구역 */}
+            {/* 멀티플레이어 존 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2.5 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
@@ -395,122 +395,87 @@ export default function LandingPage() {
                 <span className="text-[8px] font-sans font-black px-1.5 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded tracking-normal scale-90 origin-left">{t.multiplayerBadge}</span>
               </div>
               
-              <div className="relative overflow-hidden rounded-2xl group/slider flex-1 min-h-[220px] flex flex-col">
-                <div 
-                  className="flex transition-transform duration-700 ease-[cubic-bezier(0.2,1,0.3,1)] flex-1"
-                  style={{ transform: `translateX(-${activeMultiSlide * 100}%)` }}
-                >
-                  {MULTI_SUITE.map((mode) => (
-                    <div key={mode.id} className="min-w-full p-0.5 flex flex-col">
-                      <Link 
-                        href={mode.path} 
-                        // 💡 테두리(border)와 테두리 엣지 글로우(neonGlow)가 결합된 클래스
-                        className={`relative border border-solid p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 flex-1 flex flex-col justify-between overflow-hidden ${s.sliderCard} ${mode.neonBorder} ${mode.neonGlow}`}
-                      >
-                        {/* 픽셀 도트 백그라운드 레이어 */}
-                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '12px 12px' }} />
-
-                        <div className="space-y-2 pt-1 relative z-10">
-                          <div className="flex justify-between items-center">
-                            <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
-                              {mode.label}
-                            </span>
-                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={mode.activeColor}>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                <polyline points="12 5 19 12 12 19"></polyline>
-                              </svg>
-                            </div>
-                          </div>
-
-                          <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{mode.name}</h3>
-                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-3 ${s.textDesc}`}>
+              <div className="flex flex-col gap-2.5">
+                {MULTI_SUITE.map((mode) => (
+                  <div key={mode.id} className="relative block">
+                    {/* 💡 1.5px 엣지 글로우 테두리를 그라데이션 Wrapper로 구현 */}
+                    <Link 
+                      href={mode.path} 
+                      className={`group relative p-[1.5px] rounded-[1.15rem] transition-all duration-300 block hover:scale-[1.01] ${mode.edgeWrapperSmall}`}
+                    >
+                      <div className={`flex justify-between items-center p-5 rounded-[calc(1.15rem-1.5px)] h-full w-full ${s.sliderCard}`}>
+                        <div className="max-w-[85%] relative z-10">
+                          <span className={`text-[15px] font-bold transition-colors block mb-1 ${theme === 'dark' ? 'text-zinc-100' : 'text-zinc-900'} group-hover:${mode.activeColor}`}>
+                            {mode.name}
+                          </span>
+                          <span className={`text-xs block leading-normal ${s.textDesc}`}>
                             {mode.desc}
-                          </p>
+                          </span>
                         </div>
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between px-2 pt-1">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-2">
-                    {MULTI_SUITE.map((_, idx) => (
-                      <button 
-                        key={idx}
-                        onClick={() => setActiveMultiSlide(idx)}
-                        className={`h-1 rounded-full transition-all duration-500 ${idx === activeMultiSlide ? `w-8 ${MULTI_SUITE[activeMultiSlide].activeBg} ${MULTI_SUITE[activeMultiSlide].btnGlow}` : `w-2.5 ${s.sliderIndicatorIdle}`}`}
-                      />
-                    ))}
+                        <div className={`font-mono text-[10px] font-black tracking-wider uppercase transition-colors relative z-10 ${theme === 'dark' ? 'text-zinc-600 group-hover:text-zinc-400' : 'text-zinc-400 group-hover:text-zinc-600'}`}>
+                          {mode.id === 'casual' ? 'Casual' : mode.id === 'ranked' ? 'Ranked' : 'Custom'}
+                        </div>
+                      </div>
+                    </Link>
                   </div>
-                  <span className="font-mono text-[9px] font-bold text-zinc-500">
-                    0{activeMultiSlide + 1} / 0{MULTI_SUITE.length}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-1.5">
-                  <button onClick={handleMultiPrev} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                  </button>
-                  <button onClick={handleMultiNext} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                  </button>
-                </div>
+                ))}
               </div>
             </div>
 
-            {/* 싱글플레이어 슬라이더 구역 */}
-            <div className="space-y-3 flex-1 flex flex-col justify-end">
+            {/* 싱글플레이어 존 (슬라이더 전용 엣지 글로우) */}
+            <div className="space-y-3 flex-1 flex flex-col justify-end mt-4">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
                 // {t.singleplayerTitle}
               </div>
               
-              <div className="relative overflow-hidden rounded-2xl group/slider flex-1 min-h-[260px] flex flex-col">
+              <div className="relative overflow-hidden group/slider flex-1 min-h-[260px] flex flex-col pt-1">
                 <div 
                   className="flex transition-transform duration-700 ease-[cubic-bezier(0.2,1,0.3,1)] flex-1"
                   style={{ transform: `translateX(-${activeSingleSlide * 100}%)` }}
                 >
                   {SINGLE_SUITE.map((test) => (
-                    <div key={test.id} className="min-w-full p-0.5 flex flex-col">
+                    <div key={test.id} className="min-w-full px-0.5 pb-2 flex flex-col">
+                      {/* 💡 1.5px 엣지 글로우 테두리를 그라데이션 Wrapper로 구현 */}
                       <Link 
                         href={test.path} 
-                        // 💡 테두리(border)와 테두리 엣지 글로우(neonGlow)가 결합된 클래스
-                        className={`relative border border-solid p-7 sm:p-9 rounded-[1.4rem] transition-all duration-500 flex-1 flex flex-col justify-between overflow-hidden ${s.sliderCard} ${test.neonBorder} ${test.neonGlow}`}
+                        className={`group relative p-[1.5px] rounded-[1.6rem] transition-all duration-500 flex-1 flex flex-col hover:scale-[1.01] ${test.edgeWrapperLarge}`}
                       >
-                        {/* 픽셀 도트 백그라운드 레이어 */}
-                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '12px 12px' }} />
+                        <div className={`relative h-full w-full flex flex-col justify-between overflow-hidden p-7 sm:p-9 rounded-[calc(1.6rem-1.5px)] ${s.sliderCard}`}>
+                          
+                          {/* 은은한 픽셀 도트 백그라운드 레이어 */}
+                          <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.8] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
-                        <div className="space-y-2 pt-0.5 relative z-10">
-                          <div className="flex justify-between items-center">
-                            <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
-                              {test.label}
-                            </span>
-                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={test.activeColor}>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                <polyline points="12 5 19 12 12 19"></polyline>
-                              </svg>
+                          <div className="space-y-2 pt-0.5 relative z-10">
+                            <div className="flex justify-between items-center">
+                              <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
+                                {test.label}
+                              </span>
+                              {/* 💡 우상단 엣지 있는 네모 화살표 아이콘 교체 */}
+                              <div className="w-9 h-9 rounded-xl bg-zinc-500/5 dark:bg-zinc-900/80 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center group-hover:scale-105 transition-all">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={test.activeColor}>
+                                  <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                              </div>
+                            </div>
+
+                            <h3 className={`text-3xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{test.name}</h3>
+                            <p className={`text-sm max-w-md leading-relaxed line-clamp-2 ${s.textDesc}`}>
+                              {test.desc}
+                            </p>
+                          </div>
+
+                          <div className={`flex flex-col sm:flex-row gap-5 sm:gap-8 border-t pt-6 font-mono text-xs relative z-10 ${s.sliderMutedText}`}>
+                            <div className="space-y-1">
+                              <span className="text-[10px] opacity-40 font-bold uppercase tracking-widest block">{t.standard}</span>
+                              <span className={`${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'} text-sm font-black`}>{test.stat}</span>
+                            </div>
+                            <div className="space-y-1 sm:border-l sm:pl-8 border-zinc-500/10 dark:border-zinc-800/80">
+                              <span className="text-[10px] opacity-40 font-bold uppercase tracking-widest block">{t.myBest}</span>
+                              <span className={`text-sm font-black ${test.activeColor}`}>{test.myScore}</span>
                             </div>
                           </div>
 
-                          <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{test.name}</h3>
-                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-2 ${s.textDesc}`}>
-                            {test.desc}
-                          </p>
-                        </div>
-
-                        <div className={`flex flex-col sm:flex-row gap-4 sm:gap-6 border-t pt-5 font-mono text-xs relative z-10 ${s.sliderMutedText}`}>
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.standard}</span>
-                            <span className={`${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'} font-black`}>{test.stat}</span>
-                          </div>
-                          <div className="space-y-0.5 sm:border-l sm:pl-6 border-zinc-500/10 dark:border-zinc-900/60">
-                            <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.myBest}</span>
-                            <span className={`font-black ${test.activeColor}`}>{test.myScore}</span>
-                          </div>
                         </div>
                       </Link>
                     </div>
@@ -520,25 +485,25 @@ export default function LandingPage() {
 
               <div className="flex items-center justify-between px-2 pt-1">
                 <div className="flex items-center gap-3">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2.5">
                     {SINGLE_SUITE.map((_, idx) => (
                       <button 
                         key={idx}
                         onClick={() => setActiveSingleSlide(idx)}
-                        className={`h-1 rounded-full transition-all duration-500 ${idx === activeSingleSlide ? `w-8 ${SINGLE_SUITE[activeSingleSlide].activeBg} ${SINGLE_SUITE[activeSingleSlide].btnGlow}` : `w-2.5 ${s.sliderIndicatorIdle}`}`}
+                        className={`h-1.5 rounded-full transition-all duration-500 ${idx === activeSingleSlide ? `w-10 ${SINGLE_SUITE[activeSingleSlide].activeBg} ${SINGLE_SUITE[activeSingleSlide].btnGlow}` : `w-3 ${s.sliderIndicatorIdle}`}`}
                       />
                     ))}
                   </div>
-                  <span className="font-mono text-[9px] font-bold text-zinc-500">
+                  <span className="font-mono text-[10px] font-bold text-zinc-500 tracking-widest">
                     0{activeSingleSlide + 1} / 0{SINGLE_SUITE.length}
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-1.5">
-                  <button onClick={handleSinglePrev} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleSinglePrev} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
                   </button>
-                  <button onClick={handleSingleNext} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
+                  <button onClick={handleSingleNext} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 ${s.sliderArrow}`}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
                   </button>
                 </div>
