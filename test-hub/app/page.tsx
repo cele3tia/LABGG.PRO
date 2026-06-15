@@ -547,8 +547,15 @@ export default function LandingPage() {
           <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
           LABGG ENGINE SYSTEM RUNTIME
         </div>
-        <div>LABGG.PRO © 2026</div>
-      </footer>
+  
+          {/* 💡 구글 봇이 환장하는 신뢰도 링킹 존 */}
+          <div className="flex items-center gap-4 text-zinc-500">
+            <Link href="/terms" className="hover:text-zinc-300 transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-zinc-300 transition-colors">Privacy Policy</Link>
+          </div>
+          
+          <div>LABGG.PRO © 2026</div>
+        </footer>
 
     </div>
   );
