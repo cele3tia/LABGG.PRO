@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image'; // 💡 <img> 태그 에러 방지를 위해 Next.js Image 컴포넌트 임포트
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
@@ -9,17 +10,23 @@ interface RankItem {
   displayName: string;
   photoURL?: string;
   score: number;
-  timestamp: any;
+  timestamp: Date; // 💡 any 타입을 Date 타입으로 정확하게 변경
+  titleId?: string;
 }
 
 type GameType = 'reaction' | 'cps';
 type PeriodType = 'daily' | 'weekly' | 'all';
 
+const TITLE_MAP: Record<'ko' | 'en', Record<string, string>> = {
+  ko: { dev: '개발자', ai: 'AI', godspeed: '전광석화', fast: '빠름', newbie: '뉴비', noTitle: '' },
+  en: { dev: 'Developer', ai: 'AI', godspeed: 'Lightning', fast: 'Swift', newbie: 'Newbie', noTitle: '' }
+};
+
 const TRANSLATIONS = {
   ko: {
     label: 'GLOBAL LEADERBOARD',
-    reactionTab: '시각 반응 속도',
-    cpsTab: 'CPS 측정',
+    reactionTab: 'Reaction',
+    cpsTab: 'CPS Bench',
     daily: '24H',
     weekly: '1 WEEK',
     all: 'ALL-TIME',
@@ -56,65 +63,55 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const t = TRANSLATIONS[lang];
 
-  // 💡 선택한 탭 테마 컬러 동적 매핑
   const isReaction = gameTab === 'reaction';
-  const theme = {
-    text: isReaction ? 'text-emerald-400' : 'text-cyan-400',
-    bg: isReaction ? 'bg-emerald-500' : 'bg-cyan-500',
-    border: isReaction ? 'border-emerald-500/20' : 'border-cyan-500/20',
-    tabBorder: isReaction ? 'border-emerald-400' : 'border-cyan-400',
-    hoverBg: isReaction ? 'hover:bg-emerald-950/10' : 'hover:bg-cyan-950/10'
+
+  // 💡 탭 전환 시 setLoading(true)을 동기적으로 부르기 위한 전용 핸들러 함수 배치
+  const handleGameTabChange = (tab: GameType) => {
+    setGameTab(tab);
+    setLoading(true);
   };
 
   useEffect(() => {
-    setLoading(true);
-
+    // setLoading(true); // 💡 [에러 수정] Cascading Render 유발하는 동기 호출 제거
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
     const usersRef = collection(db, 'users');
     const targetField = isReaction ? 'reactionBest' : 'cpsBest';
     const sortOrder = isReaction ? 'asc' : 'desc';
-
     const qAll = query(usersRef, orderBy(targetField, sortOrder), limit(100));
 
     const unsubscribe = onSnapshot(qAll, (snapshot) => {
       const allRanks: RankItem[] = [];
-      
       snapshot.forEach((doc) => {
         const data = doc.data();
         const score = data[targetField];
-        
         if (score && score > 0) {
           allRanks.push({
             id: doc.id,
             displayName: data.displayName || 'Anonymous',
             photoURL: data.photoURL,
             score: score,
-            timestamp: data.updatedAt?.toDate() || new Date()
+            timestamp: data.updatedAt?.toDate() || new Date(),
+            titleId: data.currentTitle || '' 
           });
         }
       });
-
       const dailyRanks = allRanks.filter(item => item.timestamp >= oneDayAgo);
       const weeklyRanks = allRanks.filter(item => item.timestamp >= oneWeekAgo);
-
-      setLeaderboardData({
-        daily: dailyRanks,
-        weekly: weeklyRanks,
-        all: allRanks
-      });
-      setLoading(false);
-    }, (error) => {
-      console.error("리더보드 로드 실패:", error);
+      setLeaderboardData({ daily: dailyRanks, weekly: weeklyRanks, all: allRanks });
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [gameTab]);
+  }, [gameTab, isReaction]); // 💡 isReaction 의존성 배열에 추가 완료
 
-  const startAutoPlay = () => {
+  // 💡 autoplay 제어 함수들을 useCallback으로 감싸 무한 트리거 현상 방지
+  const stopAutoPlay = useCallback(() => {
+    if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
+  }, []);
+
+  const startAutoPlay = useCallback(() => {
     stopAutoPlay();
     autoPlayTimerRef.current = setInterval(() => {
       setPeriodTab((current) => {
@@ -122,71 +119,59 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
         if (current === 'weekly') return 'all';
         return 'daily';
       });
-    }, 3000);
-  };
-
-  const stopAutoPlay = () => {
-    if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
-  };
+    }, 4000); 
+  }, [stopAutoPlay]);
 
   useEffect(() => {
     startAutoPlay();
     return () => stopAutoPlay();
-  }, []);
+  }, [startAutoPlay, stopAutoPlay]); // 💡 startAutoPlay, stopAutoPlay 의존성 주입 완료
 
   const handlePeriodClick = (period: PeriodType) => {
     setPeriodTab(period);
-    startAutoPlay();
+    startAutoPlay(); 
   };
 
   const currentList = leaderboardData[periodTab];
   const currentUnit = isReaction ? t.ms : t.cps;
 
   return (
-    <div className="flex flex-col h-full justify-between">
+    <div className="flex flex-col h-full justify-between select-none" onMouseEnter={stopAutoPlay} onMouseLeave={startAutoPlay}>
       
-      {/* 1. 상단 컨트롤 바 헤더 헤드 */}
-      <div className="flex justify-between items-end border-b border-zinc-900 pb-5 mb-5">
-        <div className="space-y-2">
-          <span className="font-mono text-[10px] font-black text-zinc-600 tracking-[0.2em] uppercase block">
-            // {t.label}
-          </span>
-          <div className="flex items-center gap-4 font-sans text-sm font-black">
-            <button 
-              onClick={() => setGameTab('reaction')} 
-              className={`pb-1 transition-all border-b-2 tracking-tight ${isReaction ? `text-white ${theme.tabBorder}` : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
-            >
+      <div className="flex flex-col gap-4 border-b border-zinc-900 pb-5 mb-5">
+        <span className="font-mono text-[9px] font-black text-zinc-500 tracking-[0.2em] uppercase block">
+          {`// `}{t.label} {/* 💡 [에러 수정] textnode 내부 슬래시 코드 이스케이프 통과 완료 */}
+        </span>
+        
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-5 font-sans text-[15px] font-bold">
+            <button onClick={() => handleGameTabChange('reaction')} className={`pb-1 transition-all border-b-2 tracking-tight ${isReaction ? 'text-white border-white' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}>
               {t.reactionTab}
             </button>
-            <button 
-              onClick={() => setGameTab('cps')} 
-              className={`pb-1 transition-all border-b-2 tracking-tight ${!isReaction ? `text-white ${theme.tabBorder}` : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
-            >
+            <button onClick={() => handleGameTabChange('cps')} className={`pb-1 transition-all border-b-2 tracking-tight ${!isReaction ? 'text-white border-white' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}>
               {t.cpsTab}
             </button>
           </div>
-        </div>
 
-        {/* 하이테크 피봇 세션 기간 컨트롤 패널 */}
-        <div className="flex bg-zinc-950 border border-zinc-900 p-0.5 rounded-lg font-mono text-[9px]">
-          {(['daily', 'weekly', 'all'] as PeriodType[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => handlePeriodClick(p)}
-              className={`px-3 py-1.5 rounded-md font-black transition-all ${
-                periodTab === p ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-600 hover:text-zinc-400'
-              }`}
-            >
-              {t[p]}
-            </button>
-          ))}
+          <div className="flex bg-zinc-950 border border-zinc-900 p-1 rounded-full font-mono text-[9px] w-full sm:w-auto justify-between sm:justify-start">
+            {(['daily', 'weekly', 'all'] as PeriodType[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => handlePeriodClick(p)}
+                className={`px-3 py-1.5 rounded-full font-black tracking-wider transition-all ${
+                  periodTab === p ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+              >
+                {t[p]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 2. 스크롤 데이터 리스트 메인 바 (홈 화면 우측 공간을 꽉 채우도록 max-h 가변 최적화) */}
-      <div className="flex-1 overflow-y-auto max-h-[560px] lg:max-h-[590px] pr-1.5 custom-scrollbar space-y-2">
+      <div className="flex-1 overflow-y-auto max-h-[560px] lg:max-h-[590px] pr-2 custom-scrollbar space-y-2.5 overflow-x-hidden">
         {loading ? (
-          <div className="h-40 flex items-center justify-center font-mono text-[11px] text-zinc-600 tracking-widest uppercase animate-pulse">
+          <div className="h-40 flex items-center justify-center font-mono text-[10px] tracking-widest uppercase animate-pulse text-zinc-600">
             {t.loading}
           </div>
         ) : currentList.length === 0 ? (
@@ -197,70 +182,86 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
           currentList.map((item, index) => {
             const rank = index + 1;
             const rankStr = String(rank).padStart(2, '0');
+            const displayTitle = item.titleId && TITLE_MAP[lang][item.titleId] ? TITLE_MAP[lang][item.titleId] : null;
             
-            // 명예의 전당 TOP 3 조건별 커스텀 모듈 스킨 분기
             let topSkin = {
               text: 'text-zinc-500',
               bg: 'bg-transparent border-transparent hover:bg-zinc-900/30',
-              scoreGlow: ''
+              scoreGlow: 'text-zinc-300',
+              titleColor: 'text-zinc-600'
             };
 
             if (rank === 1) {
               topSkin = {
-                text: 'text-amber-400 font-black',
-                bg: 'bg-amber-500/5 border-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.02)]',
-                scoreGlow: 'text-amber-400 font-black'
+                text: 'text-amber-500 font-black',
+                bg: 'bg-amber-500/5 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.03)]',
+                scoreGlow: 'text-amber-500 font-black',
+                titleColor: 'text-amber-500/80 border-amber-500/30 bg-amber-500/10'
               };
             } else if (rank === 2) {
               topSkin = {
-                text: 'text-zinc-300 font-black',
-                bg: 'bg-zinc-800/10 border-zinc-800/60',
-                scoreGlow: 'text-zinc-300 font-bold'
+                text: 'text-zinc-400 font-black',
+                bg: 'bg-zinc-500/10 border border-zinc-700/50',
+                scoreGlow: 'text-zinc-200 font-bold',
+                titleColor: 'text-zinc-400 border-zinc-600 bg-zinc-700/30'
               };
             } else if (rank === 3) {
               topSkin = {
-                text: 'text-amber-600 font-black',
-                bg: 'bg-amber-700/5 border-amber-700/10',
-                scoreGlow: 'text-amber-600 font-bold'
+                text: 'text-orange-500 font-black',
+                bg: 'bg-orange-500/5 border border-orange-500/20',
+                scoreGlow: 'text-orange-500 font-bold',
+                titleColor: 'text-orange-500/80 border-orange-500/30 bg-orange-500/10'
               };
             }
 
             return (
               <div
                 key={item.id}
-                className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${topSkin.bg} ${rank > 3 ? theme.border + ' ' + theme.hoverBg : ''}`}
+                className={`flex items-center justify-between p-3.5 rounded-xl transition-all duration-300 ${topSkin.bg} ${rank > 3 ? 'border-zinc-900 border' : ''}`}
               >
                 <div className="flex items-center gap-4">
-                  {/* 등수 플래그 */}
-                  <span className={`font-mono text-xs text-center w-6 tracking-wide ${rank <= 3 ? topSkin.text : 'text-zinc-600'}`}>
+                  <span className={`font-mono text-[11px] text-center w-6 tracking-wider ${rank <= 3 ? topSkin.text : 'text-zinc-600 font-bold'}`}>
                     {rankStr}
                   </span>
                   
-                  {/* 프로필 이미지 노드 */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3.5">
                     {item.photoURL ? (
-                      <img 
+                      /* 💡 [에러 수정] Next.js Image 컴포넌트 최적화 구조 변경 및 unoptimized 처리 */
+                      <Image 
                         src={item.photoURL} 
                         alt={item.displayName} 
-                        className="w-5 h-5 rounded-md border border-zinc-900 object-cover"
+                        width={32}
+                        height={32}
+                        unoptimized
+                        className={`rounded-md border object-cover ${rank === 1 ? 'border-amber-400/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'border-zinc-800'}`}
                       />
                     ) : (
-                      <div className="w-5 h-5 rounded-md bg-zinc-900 border border-zinc-800 font-mono text-[9px] font-black flex items-center justify-center text-zinc-500 uppercase">
+                      <div className={`w-8 h-8 rounded-md font-mono text-[11px] font-black flex items-center justify-center uppercase ${rank === 1 ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-zinc-900 border border-zinc-800 text-zinc-500'}`}>
                         {item.displayName[0]}
                       </div>
                     )}
-                    <span className={`text-xs tracking-tight ${rank <= 3 ? 'font-bold text-zinc-200' : 'font-medium text-zinc-400'}`}>
-                      {item.displayName}
-                    </span>
+
+                    <div className="flex flex-col justify-center">
+                      <span className={`text-[13px] tracking-tight ${rank <= 3 ? 'font-bold text-white' : 'font-semibold text-zinc-300'}`}>
+                        {item.displayName}
+                      </span>
+                      
+                      {displayTitle && (
+                        <div className="mt-0.5">
+                          <span className={`inline-block px-1.5 py-[1px] text-[9px] font-mono font-black uppercase tracking-widest rounded border ${rank <= 3 ? topSkin.titleColor : 'text-zinc-500 border-zinc-800 bg-zinc-900/50'}`}>
+                            {displayTitle}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* 최종 점수 피드백 보드 */}
-                <div className="text-right font-mono">
-                  <span className={`text-xs tabular-nums ${rank <= 3 ? topSkin.scoreGlow : theme.text + ' font-bold'}`}>
+                <div className="text-right font-mono flex items-baseline gap-1 pr-2">
+                  <span className={`text-[15px] tabular-nums ${rank <= 3 ? topSkin.scoreGlow : 'text-zinc-400 font-bold'}`}>
                     {item.score}
                   </span>
-                  <span className="text-[9px] text-zinc-600 font-bold ml-1 uppercase">{currentUnit}</span>
+                  <span className={`text-[9px] font-bold uppercase pb-[1px] ${rank === 1 ? 'text-amber-500/70' : 'text-zinc-600'}`}>{currentUnit}</span>
                 </div>
               </div>
             );
@@ -268,21 +269,11 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
         )}
       </div>
 
-      {/* 모던 스크롤바 인젝션 */}
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #18181b;
-          border-radius: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #27272a;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
       `}</style>
     </div>
   );
