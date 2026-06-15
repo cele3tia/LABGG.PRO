@@ -1,23 +1,33 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+// 💡 1. Next.js 전용 Script 컴포넌트 불러오기
+import Script from 'next/script'; 
 
-export const dynamic = 'force-dynamic';
-// ❌ 이 4번째 줄을 통째로 지워줘!
-// import NeonCursorEffect from "./components/NeonCursorEffect"; 
+const inter = Inter({ subsets: ['latin'] });
 
-const geistSans = Geist({
-  subsets: ["latin"],
-});
+export const metadata: Metadata = {
+  title: 'LABGG.PRO',
+  description: 'PROVE YOUR PHYSICAL LIMITS WITH NUMBERS.',
+};
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="ko">
-      <body className={`${geistSans.className} antialiased`}>
+      <head>
+        {/* 💡 2. 여기에 구글 애드센스 스크립트 꽂아넣기 */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9543272564767938"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+      </head>
+      <body className={inter.className}>
         {children}
       </body>
     </html>
