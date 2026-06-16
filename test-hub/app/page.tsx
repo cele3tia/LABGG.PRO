@@ -9,13 +9,10 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { getUserStats } from './lib/recordService';
 
-type ThemeMode = 'dark' | 'light';
-
 interface CompleteThemeSchema {
   bg: string;
   nav: string;
   logoText: string;
-  themeBtn: string;
   profileBox: string;
   profileName: string;
   liveCounter: string;
@@ -62,6 +59,8 @@ const TRANSLATIONS = {
     multiplayerTitle: '멀티플레이어',
     singleplayerTitle: '싱글플레이어',
     multiplayerBadge: '핵심 전장',
+    terms: '이용약관',
+    privacy: '개인정보처리방침',
     modes: {
       normal: { name: '일반 매칭 (Casual Match)', desc: '레이팅 부담 없이 다른 유저들과 가볍게 피지컬 매치 진행' },
       ranked: { name: '경쟁 레이팅 (Ranked Match)', desc: '공식 티어와 랭킹 점수가 반영되는 하드코어 진검승부' },
@@ -96,6 +95,8 @@ const TRANSLATIONS = {
     multiplayerTitle: 'MULTIPLAYER',
     singleplayerTitle: 'SINGLEPLAYER',
     multiplayerBadge: 'CORE ARENA',
+    terms: 'Terms of Service',
+    privacy: 'Privacy Policy',
     modes: {
       normal: { name: 'Casual Match', desc: 'Lightweight physical match against other clickers without rating risks.' },
       ranked: { name: 'Ranked Match', desc: 'Hardcore competition that directly affects your global rank and MMR rating.' },
@@ -120,7 +121,6 @@ const TRANSLATIONS = {
 
 export default function LandingPage() {
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
-  const [theme, setTheme] = useState<ThemeMode>('dark'); 
   const [user, setUser] = useState<User | null>(null);
 
   const [level, setLevel] = useState<number>(1);
@@ -134,9 +134,6 @@ export default function LandingPage() {
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
     if (savedLang) setLang(savedLang);
-
-    const savedTheme = localStorage.getItem('site-theme') as ThemeMode;
-    if (savedTheme) setTheme(savedTheme);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -188,15 +185,9 @@ export default function LandingPage() {
     localStorage.setItem('site-lang', newLang);
   };
 
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('site-theme', nextTheme);
-  };
-
   const t = TRANSLATIONS[lang];
 
-  // 💡 1. 엣지 글로우 제거 및 도트만 남긴 멀티플레이어 배열
+  // 💡 다크모드 전용 핏으로 고정된 컴포넌트 데이터 배열
   const MULTI_SUITE = [
     {
       id: 'casual',
@@ -204,10 +195,10 @@ export default function LandingPage() {
       label: 'CASUAL MATCH',
       desc: t.modes.normal.desc,
       path: '/match/normal',
-      activeColor: 'text-emerald-500 dark:text-emerald-400',
+      activeColor: 'text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
+      dotColor: 'rgba(16,185,129,0.15)'
     },
     {
       id: 'ranked',
@@ -215,10 +206,10 @@ export default function LandingPage() {
       label: 'COMPETITIVE RANKED',
       desc: t.modes.ranked.desc,
       path: '/match/ranked',
-      activeColor: 'text-rose-500 dark:text-rose-400',
+      activeColor: 'text-rose-400',
       activeBg: 'bg-rose-500',
       btnGlow: 'shadow-[0_0_15px_rgba(244,63,94,0.2)]',
-      dotColor: theme === 'dark' ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.08)'
+      dotColor: 'rgba(244,63,94,0.15)'
     },
     {
       id: 'custom',
@@ -226,14 +217,13 @@ export default function LandingPage() {
       label: 'PRIVATE CUSTOM',
       desc: t.modes.custom.desc,
       path: '/match/custom',
-      activeColor: 'text-purple-500 dark:text-purple-400',
+      activeColor: 'text-purple-400',
       activeBg: 'bg-purple-500',
       btnGlow: 'shadow-[0_0_15px_rgba(168,85,247,0.2)]',
-      dotColor: theme === 'dark' ? 'rgba(168,85,247,0.15)' : 'rgba(168,85,247,0.08)'
+      dotColor: 'rgba(168,85,247,0.15)'
     }
   ];
 
-  // 💡 2. 엣지 글로우 제거 및 도트만 남긴 싱글플레이어 배열
   const SINGLE_SUITE = [
     {
       id: 'reaction',
@@ -243,10 +233,10 @@ export default function LandingPage() {
       stat: t.tests.reaction.stat,
       myScore: fbStats.reactionBest,
       path: '/reaction',
-      activeColor: 'text-emerald-500 dark:text-emerald-400',
+      activeColor: 'text-emerald-400',
       activeBg: 'bg-emerald-500',
       btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-      dotColor: theme === 'dark' ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)'
+      dotColor: 'rgba(16,185,129,0.15)'
     },
     {
       id: 'cps',
@@ -256,10 +246,10 @@ export default function LandingPage() {
       stat: t.tests.cps.stat,
       myScore: fbStats.cpsBest,
       path: '/cps',
-      activeColor: 'text-cyan-500 dark:text-cyan-400',
+      activeColor: 'text-cyan-400',
       activeBg: 'bg-cyan-500',
       btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]',
-      dotColor: theme === 'dark' ? 'rgba(34,211,238,0.15)' : 'rgba(34,211,238,0.08)'
+      dotColor: 'rgba(34,211,238,0.15)'
     }
   ];
 
@@ -269,68 +259,54 @@ export default function LandingPage() {
   const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
   const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
 
-  // 💡 카드 기본 테두리(border)를 전체적으로 균일하게 복구
+  // 💡 삼항 연산자 제거 후 100% 순수 다크모드 전용 테마 뼈대로 정밀 고정
   const s: CompleteThemeSchema = {
-    bg: theme === 'dark' ? 'bg-[#000000] text-[#e4e4e7]' : 'bg-[#f5f6f9] text-[#1c1917]',
-    nav: theme === 'dark' ? 'bg-[#000000] border-zinc-900' : 'bg-[#ffffff] border-zinc-200/80 shadow-sm',
-    logoText: theme === 'dark' ? 'text-white' : 'text-black',
-    themeBtn: theme === 'dark' ? 'text-zinc-500 hover:text-zinc-200 border-zinc-900 bg-zinc-950' : 'text-zinc-500 hover:text-black border-zinc-200 bg-white shadow-sm',
-    profileBox: theme === 'dark' ? 'bg-zinc-950 border-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-600 hover:text-black shadow-sm',
-    profileName: theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800',
-    liveCounter: theme === 'dark' ? 'bg-emerald-950/10 border-emerald-950' : 'bg-emerald-500/[0.03] border-emerald-200 shadow-sm',
-    title1: theme === 'dark' ? 'text-white' : 'text-black',
-    title2: theme === 'dark' ? 'text-zinc-800 group-hover/title:text-zinc-600' : 'text-zinc-300 group-hover/title:text-zinc-500',
-    desc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
-    textDesc: theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500 font-medium',
-    sectionTitle: theme === 'dark' ? 'text-zinc-600' : 'text-zinc-400',
-    sliderCard: theme === 'dark' ? 'bg-[#0c0c0e]/80 border border-zinc-800/80 hover:border-zinc-700' : 'bg-white border border-zinc-200 hover:border-zinc-300 shadow-sm',
-    sliderTitle: theme === 'dark' ? 'text-white' : 'text-black',
-    sliderMutedText: theme === 'dark' ? 'text-zinc-500 sm:border-zinc-900' : 'text-zinc-500 sm:border-zinc-200',
-    sliderIndicatorIdle: theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-300',
-    sliderArrow: theme === 'dark' ? 'bg-zinc-950 border-zinc-900 text-zinc-400 hover:text-white' : 'bg-white border-zinc-200 text-zinc-500 hover:text-black shadow-sm',
-    leaderboardBg: theme === 'dark' ? 'bg-[#08080a] border-zinc-900' : 'bg-white border-zinc-200 shadow-sm',
-    gridLine: theme === 'dark' ? 'linear-gradient(to right, rgba(39,39,42,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(39,39,42,0.15) 1px, transparent 1px)' : 'linear-gradient(to right, rgba(212,212,216,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(212,212,216,0.2) 1px, transparent 1px)',
-    footerBorder: theme === 'dark' ? 'border-zinc-900 text-zinc-600' : 'border-zinc-200 text-zinc-400'
+    bg: 'bg-[#000000] text-[#e4e4e7]',
+    nav: 'bg-[#000000] border-zinc-900',
+    logoText: 'text-white',
+    profileBox: 'bg-zinc-950 border-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-700',
+    profileName: 'text-zinc-200',
+    liveCounter: 'bg-emerald-950/10 border-emerald-950',
+    title1: 'text-white',
+    title2: 'text-zinc-500 group-hover/title:text-zinc-400', 
+    desc: 'text-zinc-400',
+    textDesc: 'text-zinc-400',
+    sectionTitle: 'text-zinc-600',
+    sliderCard: 'bg-[#0c0c0e]/80 border border-zinc-800/80 hover:border-zinc-700',
+    sliderTitle: 'text-white',
+    sliderMutedText: 'text-zinc-500 sm:border-zinc-900',
+    sliderIndicatorIdle: 'bg-zinc-800',
+    sliderArrow: 'bg-zinc-950 border-zinc-900 text-zinc-400 hover:text-white',
+    leaderboardBg: 'bg-[#08080a] border-zinc-900',
+    gridLine: 'linear-gradient(to right, rgba(39,39,42,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(39,39,42,0.15) 1px, transparent 1px)',
+    footerBorder: 'border-zinc-900 text-zinc-600'
   };
 
   return (
-    <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight transition-colors duration-300`}>
+    <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight`}>
       
       <div className="absolute inset-x-0 bottom-0 top-24 z-0 pointer-events-none select-none overflow-hidden">
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
 
-      <nav className={`relative z-50 w-full ${s.nav} border-b transition-colors duration-300`}>
-        <div className="w-full px-6 sm:px-10 lg:px-12 py-4 flex flex-col md:flex-row gap-4 md:gap-0 justify-between items-center">
+      <nav className={`relative z-50 w-full ${s.nav} border-b`}>
+        <div className="w-full px-6 sm:px-10 lg:px-12 py-4 flex flex-wrap justify-between items-center gap-y-3">
           
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 font-mono text-xs font-bold">
             <Link href="/" className={`text-base font-sans tracking-tight font-black transition-colors ${s.logoText}`}>
               LABGG.PRO
             </Link>
-            <div className="w-[1px] h-3 bg-zinc-800/30 dark:bg-zinc-800/50 hidden md:block" />
+            <div className="w-[1px] h-3 bg-zinc-800/50 hidden md:block" />
             
-            <div className="flex items-center bg-zinc-500/5 dark:bg-zinc-950 border border-zinc-500/10 dark:border-zinc-900 rounded-lg px-2.5 py-1 text-[10px] font-bold gap-2">
-              <button 
-                onClick={() => handleLangChange('ko')} 
-                className={`transition-colors ${lang === 'ko' ? (theme === 'dark' ? 'text-white font-black' : 'text-black font-black') : 'text-zinc-500'}`}
-              >
+            <div className="flex items-center bg-zinc-950 border border-zinc-900 rounded-lg px-2.5 py-1 text-[10px] font-bold gap-2">
+              <button onClick={() => handleLangChange('ko')} className={`transition-colors ${lang === 'ko' ? 'text-white font-black' : 'text-zinc-500'}`}>
                 KR
               </button>
               <span className="opacity-20 text-zinc-500">|</span>
-              <button 
-                onClick={() => handleLangChange('en')} 
-                className={`transition-colors ${lang === 'en' ? (theme === 'dark' ? 'text-white font-black' : 'text-black font-black') : 'text-zinc-500'}`}
-              >
+              <button onClick={() => handleLangChange('en')} className={`transition-colors ${lang === 'en' ? 'text-white font-black' : 'text-black font-black'} : 'text-zinc-500'`}>
                 EN
               </button>
             </div>
-
-            <button 
-              onClick={toggleTheme}
-              className={`text-[10px] px-2.5 py-1 rounded-md border transition-all ${s.themeBtn}`}
-            >
-              {theme === 'dark' ? 'LIGHT MODE' : 'DARK MODE'}
-            </button>
           </div>
 
           <div className="flex items-center gap-3 font-mono text-[10px]">
@@ -348,7 +324,7 @@ export default function LandingPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70"></span>
                 <span className="relative inline-flex rounded-full h-1 w-1 bg-emerald-400"></span>
               </span>
-              <div className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 tracking-tight flex items-center gap-1">
+              <div className="text-[10px] font-bold text-emerald-400 tracking-tight flex items-center gap-1">
                 <RealTimeOnlineCounter /> 
                 <span className="text-[8px] font-sans font-black tracking-widest text-emerald-500/40 ml-0.5">LIVE</span>
               </div>
@@ -361,12 +337,12 @@ export default function LandingPage() {
       <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-16 pb-32">
         
         <div className="max-w-4xl mb-12">
-          <h1 className="group/title inline-block cursor-default text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tighter mb-4 transition-colors duration-300">
-            <span className={`transition-colors duration-300 ${s.title1}`}>
+          <h1 className="group/title inline-block cursor-default text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tighter mb-4">
+            <span className={`transition-colors ${s.title1}`}>
               {t.title1}
             </span>
             <br />
-            <span className={`block mt-2 transition-colors duration-300 ${s.title2}`}>
+            <span className={`block mt-2 transition-colors ${s.title2}`}>
               {t.title2}
             </span>
           </h1>
@@ -396,7 +372,6 @@ export default function LandingPage() {
                         href={mode.path} 
                         className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
                       >
-                        {/* 💡 도트 패턴 유지 */}
                         <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
                         <div className="space-y-2 pt-1 relative z-10">
@@ -404,7 +379,7 @@ export default function LandingPage() {
                             <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
                               {mode.label}
                             </span>
-                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
+                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 border border-zinc-500/10 flex items-center justify-center hover:scale-105 transition-all">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={mode.activeColor}>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                 <polyline points="12 5 19 12 12 19"></polyline>
@@ -468,7 +443,6 @@ export default function LandingPage() {
                         href={test.path} 
                         className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
                       >
-                        {/* 💡 도트 패턴 유지 */}
                         <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
                         <div className="space-y-2 pt-0.5 relative z-10">
@@ -476,7 +450,7 @@ export default function LandingPage() {
                             <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
                               {test.label}
                             </span>
-                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 dark:bg-zinc-900 border border-zinc-500/10 dark:border-zinc-800 flex items-center justify-center hover:scale-105 transition-all">
+                            <div className="w-8 h-8 rounded-lg border flex items-center justify-center hover:scale-105 transition-all bg-zinc-500/5 border-zinc-500/10">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={test.activeColor}>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                 <polyline points="12 5 19 12 12 19"></polyline>
@@ -493,7 +467,7 @@ export default function LandingPage() {
                         <div className={`flex flex-col sm:flex-row gap-4 sm:gap-6 border-t pt-5 font-mono text-xs relative z-10 ${s.sliderMutedText}`}>
                           <div className="space-y-0.5">
                             <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.standard}</span>
-                            <span className={`${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-800'} font-black`}>{test.stat}</span>
+                            <span className="text-zinc-200 font-black">{test.stat}</span>
                           </div>
                           <div className="space-y-0.5 sm:border-l sm:pl-6 border-zinc-500/10 dark:border-zinc-900/60">
                             <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.myBest}</span>
@@ -533,29 +507,30 @@ export default function LandingPage() {
               </div>
             </div>
 
-          </div>
+          </div> {/* lg:col-span-7 마감 */}
 
-          <div className={`lg:col-span-5 border rounded-3xl p-6 sm:p-8 backdrop-blur-md h-full lg:min-h-[690px] transition-colors duration-300 ${s.leaderboardBg}`}>
-            <Leaderboard lang={lang} />
+          {/* 우측 리더보드 구역 */}
+          <div className={`lg:col-span-5 border rounded-3xl p-6 sm:p-8 backdrop-blur-md h-full lg:min-h-[690px] ${s.leaderboardBg}`}>
+            {/* 💡 상시 다크모드 주입 설정 */}
+            <Leaderboard lang={lang} {...({ theme: 'dark' } as any)} />
           </div>
 
         </div>
       </main>
 
-      <footer className={`w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4 font-mono text-[9px] font-bold tracking-widest uppercase transition-colors ${s.footerBorder}`}>
+      <footer className={`w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4 font-mono text-[9px] font-bold tracking-widest uppercase ${s.footerBorder}`}>
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
           LABGG ENGINE SYSTEM RUNTIME
         </div>
   
-          {/* 💡 구글 봇이 환장하는 신뢰도 링킹 존 */}
-          <div className="flex items-center gap-4 text-zinc-500">
-            <Link href="/terms" className="hover:text-zinc-300 transition-colors">Terms of Service</Link>
-            <Link href="/privacy" className="hover:text-zinc-300 transition-colors">Privacy Policy</Link>
-          </div>
-          
-          <div>LABGG.PRO © 2026</div>
-        </footer>
+        <div className="flex items-center gap-4 text-zinc-500">
+          <Link href="/terms" className="hover:text-zinc-300 transition-colors">{t.terms}</Link>
+          <Link href="/privacy" className="hover:text-zinc-300 transition-colors">{t.privacy}</Link>
+        </div>
+        
+        <div>LABGG.PRO © 2026</div>
+      </footer>
 
     </div>
   );
