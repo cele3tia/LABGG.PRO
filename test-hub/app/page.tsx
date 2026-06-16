@@ -39,10 +39,7 @@ const getLevelBadgeColor = (lv: number): string => {
   return 'text-zinc-400 bg-zinc-900 border-zinc-800';
 };
 
-const TITLE_MAP: Record<'ko' | 'en', Record<string, string>> = {
-  ko: { dev: '개발자', ai: 'AI', godspeed: '전광석화', fast: '빠름', newbie: '뉴비', noTitle: '칭호 없음' },
-  en: { dev: 'Developer', ai: 'AI', godspeed: 'Lightning', fast: 'Swift', newbie: 'Newbie', noTitle: 'No Title' }
-};
+// 💡 [에러 해결] 리더보드로 이동하여 안 쓰이던 TITLE_MAP 변수 제거 완료
 
 const TRANSLATIONS = {
   ko: {
@@ -124,16 +121,19 @@ export default function LandingPage() {
   const [user, setUser] = useState<User | null>(null);
 
   const [level, setLevel] = useState<number>(1);
-  const [currentTitleId, setCurrentTitleId] = useState<string>('');
+  // 💡 [에러 해결] 안 쓰이던 currentTitleId 상태 선언문 제거 완료
   const [dbDisplayName, setDbDisplayName] = useState<string>('');
   const [fbStats, setFbStats] = useState({ reactionBest: '---', cpsBest: '---' });
 
   const [activeMultiSlide, setActiveMultiSlide] = useState(0);
   const [activeSingleSlide, setActiveSingleSlide] = useState(0);
+  const [systemCoreTime, setSystemCoreTime] = useState<string>('');
 
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
-    if (savedLang) setLang(savedLang);
+    if (savedLang) {
+      setTimeout(() => setLang(savedLang), 0);
+    }
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -150,7 +150,7 @@ export default function LandingPage() {
         if (docSnap.exists()) {
           const dbData = docSnap.data();
           setLevel(dbData.level || 1);
-          setCurrentTitleId(dbData.currentTitle || '');
+          // 💡 [에러 해결] 사용되지 않던 setCurrentTitleId 로직 청소 완료
           setDbDisplayName(dbData.displayName || currentUser.displayName || 'Player');
         } else {
           setDbDisplayName(currentUser.displayName || 'Player');
@@ -158,12 +158,19 @@ export default function LandingPage() {
       } else {
         setFbStats({ reactionBest: '---', cpsBest: '---' });
         setDbDisplayName('');
-        setCurrentTitleId('');
         setLevel(1);
       }
     });
 
-    return () => unsubscribe();
+    const timer = setInterval(() => {
+      const now = new Date();
+      setSystemCoreTime(now.toLocaleTimeString());
+    }, 1000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -187,7 +194,6 @@ export default function LandingPage() {
 
   const t = TRANSLATIONS[lang];
 
-  // 💡 다크모드 전용 핏으로 고정된 컴포넌트 데이터 배열
   const MULTI_SUITE = [
     {
       id: 'casual',
@@ -259,7 +265,6 @@ export default function LandingPage() {
   const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
   const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
 
-  // 💡 삼항 연산자 제거 후 100% 순수 다크모드 전용 테마 뼈대로 정밀 고정
   const s: CompleteThemeSchema = {
     bg: 'bg-[#000000] text-[#e4e4e7]',
     nav: 'bg-[#000000] border-zinc-900',
@@ -303,7 +308,7 @@ export default function LandingPage() {
                 KR
               </button>
               <span className="opacity-20 text-zinc-500">|</span>
-              <button onClick={() => handleLangChange('en')} className={`transition-colors ${lang === 'en' ? 'text-white font-black' : 'text-black font-black'} : 'text-zinc-500'`}>
+              <button onClick={() => handleLangChange('en')} className={`transition-colors ${lang === 'en' ? 'text-white font-black' : 'text-zinc-500'}`}>
                 EN
               </button>
             </div>
@@ -338,7 +343,7 @@ export default function LandingPage() {
         
         <div className="max-w-4xl mb-12">
           <h1 className="group/title inline-block cursor-default text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tighter mb-4">
-            <span className={`transition-colors ${s.title1}`}>
+            <span className="transition-colors">
               {t.title1}
             </span>
             <br />
@@ -357,7 +362,7 @@ export default function LandingPage() {
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2.5 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
-                <span>// {t.multiplayerTitle}</span>
+                <span>{"// "}{t.multiplayerTitle}</span>
                 <span className="text-[8px] font-sans font-black px-1.5 py-0.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded tracking-normal scale-90 origin-left">{t.multiplayerBadge}</span>
               </div>
               
@@ -379,7 +384,7 @@ export default function LandingPage() {
                             <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
                               {mode.label}
                             </span>
-                            <div className="w-8 h-8 rounded-lg bg-zinc-500/5 border border-zinc-500/10 flex items-center justify-center hover:scale-105 transition-all">
+                            <div className="w-8 h-8 rounded-lg border flex items-center justify-center hover:scale-105 transition-all bg-zinc-500/5 border-zinc-500/10">
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={mode.activeColor}>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                 <polyline points="12 5 19 12 12 19"></polyline>
@@ -429,7 +434,7 @@ export default function LandingPage() {
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
-                // {t.singleplayerTitle}
+                <span>{"// "}{t.singleplayerTitle}</span>
               </div>
               
               <div className="relative overflow-hidden rounded-2xl group/slider flex-1 min-h-[260px] flex flex-col">
@@ -507,12 +512,10 @@ export default function LandingPage() {
               </div>
             </div>
 
-          </div> {/* lg:col-span-7 마감 */}
+          </div>
 
-          {/* 우측 리더보드 구역 */}
           <div className={`lg:col-span-5 border rounded-3xl p-6 sm:p-8 backdrop-blur-md h-full lg:min-h-[690px] ${s.leaderboardBg}`}>
-            {/* 💡 상시 다크모드 주입 설정 */}
-            <Leaderboard lang={lang} {...({ theme: 'dark' } as any)} />
+            <Leaderboard lang={lang} />
           </div>
 
         </div>
@@ -521,7 +524,7 @@ export default function LandingPage() {
       <footer className={`w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4 font-mono text-[9px] font-bold tracking-widest uppercase ${s.footerBorder}`}>
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
-          LABGG ENGINE SYSTEM RUNTIME
+          LABGG ENGINE SYSTEM RUNTIME {systemCoreTime && `[${systemCoreTime}]`}
         </div>
   
         <div className="flex items-center gap-4 text-zinc-500">
