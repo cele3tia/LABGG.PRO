@@ -417,14 +417,28 @@ export default function LandingPage() {
             </Link>
             {/* 📸 [END: INSTAGRAM_ICON_NAV] 📸 */}
 
+            {/* ⚡ [START: USER_AUTH_BUTTON_ZONE] ⚡ */}
             {user ? (
               <Link href="/profile" className={`flex items-center gap-2.5 border pl-3 pr-2 py-1 rounded-md transition-all font-sans text-[11px] tracking-tight ${s.profileBox}`}>
                 <span className={`font-black tracking-tight ${s.profileName}`}>{dbDisplayName}</span>
                 <span className={`text-[9px] font-mono font-black px-1.5 py-0.5 rounded transition-all ${getLevelBadgeColor(level)}`}>{t.lvl}{level}</span>
               </Link>
             ) : (
-              <Link href="/login" className={`border px-3.5 py-1 rounded-md transition-all font-bold ${s.profileBox}`}>{t.loginBtn}</Link>
+              <Link 
+                href="/login" 
+                className="relative inline-flex items-center justify-center font-sans text-[10px] font-black tracking-widest uppercase px-4 py-1.5 rounded-full text-zinc-400 border border-zinc-800 bg-zinc-950/30 overflow-hidden transition-all duration-300 hover:text-white hover:border-[#9e38ff] hover:shadow-[0_0_15px_rgba(158,56,255,0.3)] active:scale-95 group/loginbtn"
+              >
+                <span className="absolute inset-0 z-0 bg-gradient-to-r from-[#9e38ff]/10 to-[#7928ca]/10 transform translate-y-full group-hover/loginbtn:translate-y-0 transition-transform duration-300" />
+                <span className="relative z-10 flex items-center gap-1.5">
+                  {t.loginBtn}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="transform transition-transform duration-300 group-hover/loginbtn:translate-x-1">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </span>
+              </Link>
             )}
+            {/* ⚡ [END: USER_AUTH_BUTTON_ZONE] ⚡ */}
 
             <div className={`flex items-center gap-2 border px-3 py-1 rounded-md transition-colors ${s.liveCounter}`}>
               <span className="relative flex h-1 w-1">
