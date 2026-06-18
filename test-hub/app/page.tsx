@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import MagicRings from './components/MagicRings'; 
 import RealTimeOnlineCounter from './components/RealTimeOnlineCounter';
 import Leaderboard from './components/Leaderboard';
 import { auth, db } from './lib/firebase';
@@ -38,8 +39,6 @@ const getLevelBadgeColor = (lv: number): string => {
   if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
   return 'text-zinc-400 bg-zinc-900 border-zinc-800';
 };
-
-// 💡 [에러 해결] 리더보드로 이동하여 안 쓰이던 TITLE_MAP 변수 제거 완료
 
 const TRANSLATIONS = {
   ko: {
@@ -121,7 +120,6 @@ export default function LandingPage() {
   const [user, setUser] = useState<User | null>(null);
 
   const [level, setLevel] = useState<number>(1);
-  // 💡 [에러 해결] 안 쓰이던 currentTitleId 상태 선언문 제거 완료
   const [dbDisplayName, setDbDisplayName] = useState<string>('');
   const [fbStats, setFbStats] = useState({ reactionBest: '---', cpsBest: '---' });
 
@@ -150,7 +148,6 @@ export default function LandingPage() {
         if (docSnap.exists()) {
           const dbData = docSnap.data();
           setLevel(dbData.level || 1);
-          // 💡 [에러 해결] 사용되지 않던 setCurrentTitleId 로직 청소 완료
           setDbDisplayName(dbData.displayName || currentUser.displayName || 'Player');
         } else {
           setDbDisplayName(currentUser.displayName || 'Player');
@@ -290,7 +287,34 @@ export default function LandingPage() {
   return (
     <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight`}>
       
-      <div className="absolute inset-x-0 bottom-0 top-24 z-0 pointer-events-none select-none overflow-hidden">
+      {/* ✨ Magic Rings 배경 설정 그대로 유지 ✨ */}
+      <div className="fixed inset-0 z-[0] pointer-events-none opacity-80">
+        <MagicRings
+          color="#d9b2ff"
+          colorTwo="#9e38ff"
+          ringCount={6}
+          speed={1}
+          attenuation={10}
+          lineThickness={6}
+          baseRadius={0.35}
+          radiusStep={0.1}
+          scaleRate={0.1}
+          opacity={1}
+          blur={5}
+          noiseAmount={0.1}
+          rotation={0}
+          ringGap={1.5}
+          fadeIn={0.7}
+          fadeOut={0.5}
+          followMouse={false}
+          mouseInfluence={0.2}
+          hoverScale={1.2}
+          parallax={0.05}
+          clickBurst={true}
+        />
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 top-24 z-[1] pointer-events-none select-none overflow-hidden">
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
 
@@ -372,7 +396,8 @@ export default function LandingPage() {
                   style={{ transform: `translateX(-${activeMultiSlide * 100}%)` }}
                 >
                   {MULTI_SUITE.map((mode) => (
-                    <div key={mode.id} className="min-w-full p-0.5 flex flex-col">
+                    /* 💡 잘림 방지: p-0.5에서 p-2로 올려서 내부 마진 공간을 확보했어! */
+                    <div key={mode.id} className="min-w-full p-2 flex flex-col">
                       <Link 
                         href={mode.path} 
                         className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
@@ -443,7 +468,8 @@ export default function LandingPage() {
                   style={{ transform: `translateX(-${activeSingleSlide * 100}%)` }}
                 >
                   {SINGLE_SUITE.map((test) => (
-                    <div key={test.id} className="min-w-full p-0.5 flex flex-col">
+                    /* 💡 잘림 방지: 여기도 p-0.5에서 p-2로 교체 완료! */
+                    <div key={test.id} className="min-w-full p-2 flex flex-col">
                       <Link 
                         href={test.path} 
                         className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
