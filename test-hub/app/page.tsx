@@ -1,5 +1,8 @@
 'use client';
 
+/* ==========================================
+   [START: IMPORTS_AND_TYPES]
+   ========================================== */
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import MagicRings from './components/MagicRings'; 
@@ -31,7 +34,14 @@ interface CompleteThemeSchema {
   gridLine: string;
   footerBorder: string;
 }
+/* ==========================================
+   [END: IMPORTS_AND_TYPES]
+   ========================================== */
 
+
+/* ==========================================
+   [START: LEVEL_BADGE_HELPER]
+   ========================================== */
 const getLevelBadgeColor = (lv: number): string => {
   if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
   if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30';
@@ -39,7 +49,14 @@ const getLevelBadgeColor = (lv: number): string => {
   if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
   return 'text-zinc-400 bg-zinc-900 border-zinc-800';
 };
+/* ==========================================
+   [END: LEVEL_BADGE_HELPER]
+   ========================================== */
 
+
+/* ==========================================
+   [START: TRANSLATION_DATA]
+   ========================================== */
 const TRANSLATIONS = {
   ko: {
     title1: '당신의 피지컬을',
@@ -114,9 +131,15 @@ const TRANSLATIONS = {
     }
   }
 };
+/* ==========================================
+   [END: TRANSLATION_DATA]
+   ========================================== */
 
 export default function LandingPage() {
-  const [lang, setLang] = useState<'ko' | 'en'>('ko');
+  /* ==========================================
+     [START: STATE_AND_EFFECTS]
+     ========================================== */
+  const [lang, setLang] = useState<'ko' | 'en'>('en'); 
   const [user, setUser] = useState<User | null>(null);
 
   const [level, setLevel] = useState<number>(1);
@@ -125,12 +148,13 @@ export default function LandingPage() {
 
   const [activeMultiSlide, setActiveMultiSlide] = useState(0);
   const [activeSingleSlide, setActiveSingleSlide] = useState(0);
-  const [systemCoreTime, setSystemCoreTime] = useState<string>('');
 
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
     if (savedLang) {
       setTimeout(() => setLang(savedLang), 0);
+    } else {
+      setLang('en'); 
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -159,15 +183,7 @@ export default function LandingPage() {
       }
     });
 
-    const timer = setInterval(() => {
-      const now = new Date();
-      setSystemCoreTime(now.toLocaleTimeString());
-    }, 1000);
-
-    return () => {
-      unsubscribe();
-      clearInterval(timer);
-    };
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -183,14 +199,28 @@ export default function LandingPage() {
     }, 5000);
     return () => clearTimeout(singleTimer);
   }, [activeSingleSlide]);
+  /* ==========================================
+     [END: STATE_AND_EFFECTS]
+     ========================================== */
 
+
+  /* ==========================================
+     [START: LANGUAGE_HANDLER]
+     ========================================== */
   const handleLangChange = (newLang: 'ko' | 'en') => {
     setLang(newLang);
     localStorage.setItem('site-lang', newLang);
   };
 
   const t = TRANSLATIONS[lang];
+  /* ==========================================
+     [END: LANGUAGE_HANDLER]
+     ========================================== */
 
+
+  /* ==========================================
+     [START: SUITE_DATA]
+     ========================================== */
   const MULTI_SUITE = [
     {
       id: 'casual',
@@ -255,13 +285,27 @@ export default function LandingPage() {
       dotColor: 'rgba(34,211,238,0.15)'
     }
   ];
+  /* ==========================================
+     [END: SUITE_DATA]
+     ========================================== */
 
+
+  /* ==========================================
+     [START: SLIDE_CONTROLS]
+     ========================================== */
   const handleMultiPrev = () => setActiveMultiSlide((prev) => (prev === 0 ? MULTI_SUITE.length - 1 : prev - 1));
   const handleMultiNext = () => setActiveMultiSlide((prev) => (prev === MULTI_SUITE.length - 1 ? 0 : prev + 1));
 
   const handleSinglePrev = () => setActiveSingleSlide((prev) => (prev === 0 ? SINGLE_SUITE.length - 1 : prev - 1));
   const handleSingleNext = () => setActiveSingleSlide((prev) => (prev === SINGLE_SUITE.length - 1 ? 0 : prev + 1));
+  /* ==========================================
+     [END: SLIDE_CONTROLS]
+     ========================================== */
 
+
+  /* ==========================================
+     [START: THEME_STYLING]
+     ========================================== */
   const s: CompleteThemeSchema = {
     bg: 'bg-[#000000] text-[#e4e4e7]',
     nav: 'bg-[#000000] border-zinc-900',
@@ -283,11 +327,14 @@ export default function LandingPage() {
     gridLine: 'linear-gradient(to right, rgba(39,39,42,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(39,39,42,0.15) 1px, transparent 1px)',
     footerBorder: 'border-zinc-900 text-zinc-600'
   };
+  /* ==========================================
+     [END: THEME_STYLING]
+     ========================================== */
 
   return (
     <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight`}>
       
-      {/* ✨ Magic Rings 배경 설정 그대로 유지 ✨ */}
+      {/* 🔮 [START: MAGIC_RINGS_BACKGROUND] 🔮 */}
       <div className="fixed inset-0 z-[0] pointer-events-none opacity-80">
         <MagicRings
           color="#d9b2ff"
@@ -313,11 +360,17 @@ export default function LandingPage() {
           clickBurst={true}
         />
       </div>
+      {/* 🔮 [END: MAGIC_RINGS_BACKGROUND] 🔮 */}
 
+
+      {/* 📐 [START: GRID_LINE_LAYOUT] 📐 */}
       <div className="absolute inset-x-0 bottom-0 top-24 z-[1] pointer-events-none select-none overflow-hidden">
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
+      {/* 📐 [END: GRID_LINE_LAYOUT] 📐 */}
 
+
+      {/* 🗺️ [START: NAVIGATION_BAR] 🗺️ */}
       <nav className={`relative z-50 w-full ${s.nav} border-b`}>
         <div className="w-full px-6 sm:px-10 lg:px-12 py-4 flex flex-wrap justify-between items-center gap-y-3">
           
@@ -327,18 +380,43 @@ export default function LandingPage() {
             </Link>
             <div className="w-[1px] h-3 bg-zinc-800/50 hidden md:block" />
             
-            <div className="flex items-center bg-zinc-950 border border-zinc-900 rounded-lg px-2.5 py-1 text-[10px] font-bold gap-2">
-              <button onClick={() => handleLangChange('ko')} className={`transition-colors ${lang === 'ko' ? 'text-white font-black' : 'text-zinc-500'}`}>
+            {/* ⚡ [START: LANGUAGE_TOGGLE_UI] ⚡ */}
+            <div className="relative flex items-center bg-zinc-900/40 border border-zinc-800/60 rounded-full p-[3px] text-[10px] font-mono font-bold select-none backdrop-blur-md w-[72px] h-[28px]">
+              <div 
+                className={`absolute top-[3px] bottom-[3px] left-[3px] w-[32px] bg-gradient-to-r from-[#9e38ff] to-[#7928ca] shadow-[0_0_10px_rgba(158,56,255,0.4)] rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.2,1.4)] ${lang === 'en' ? 'transform translate-x-[32px]' : ''}`} 
+              />
+              
+              <button 
+                onClick={() => handleLangChange('ko')} 
+                className={`relative z-10 w-[32px] h-full flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${lang === 'ko' ? 'text-white font-black' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
                 KR
               </button>
-              <span className="opacity-20 text-zinc-500">|</span>
-              <button onClick={() => handleLangChange('en')} className={`transition-colors ${lang === 'en' ? 'text-white font-black' : 'text-zinc-500'}`}>
+              <button 
+                onClick={() => handleLangChange('en')} 
+                className={`relative z-10 w-[32px] h-full flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${lang === 'en' ? 'text-white font-black' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
                 EN
               </button>
             </div>
+            {/* ⚡ [END: LANGUAGE_TOGGLE_UI] ⚡ */}
           </div>
 
-          <div className="flex items-center gap-3 font-mono text-[10px]">
+          <div className="flex items-center gap-4 font-mono text-[10px]">
+            {/* 📸 [START: INSTAGRAM_ICON_NAV] 📸 */}
+            <Link 
+              href="/socials" 
+              className="text-zinc-500 hover:text-[#9e38ff] transition-all duration-300 transform hover:scale-125 hover:rotate-6 active:scale-90 flex items-center justify-center p-1"
+              aria-label="Instagram"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+              </svg>
+            </Link>
+            {/* 📸 [END: INSTAGRAM_ICON_NAV] 📸 */}
+
             {user ? (
               <Link href="/profile" className={`flex items-center gap-2.5 border pl-3 pr-2 py-1 rounded-md transition-all font-sans text-[11px] tracking-tight ${s.profileBox}`}>
                 <span className={`font-black tracking-tight ${s.profileName}`}>{dbDisplayName}</span>
@@ -362,9 +440,12 @@ export default function LandingPage() {
 
         </div>
       </nav>
+      {/* 🗺️ [END: NAVIGATION_BAR] 🗺️ */}
+
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-16 pb-32">
         
+        {/* 📢 [START: HERO_SECTION] 📢 */}
         <div className="max-w-4xl mb-12">
           <h1 className="group/title inline-block cursor-default text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tighter mb-4">
             <span className="transition-colors">
@@ -377,12 +458,14 @@ export default function LandingPage() {
           </h1>
           <p className={`max-w-lg font-medium text-sm transition-colors ${s.desc}`}>{t.desc}</p>
         </div>
+        {/* 📢 [END: HERO_SECTION] 📢 */}
+
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
           
           <div className="lg:col-span-7 flex flex-col justify-between gap-10">
             
-            {/* 멀티플레이어 슬라이더 구역 */}
+            {/* 🕹️ [START: MULTIPLAYER_SLIDER] 🕹️ */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2.5 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
@@ -396,8 +479,7 @@ export default function LandingPage() {
                   style={{ transform: `translateX(-${activeMultiSlide * 100}%)` }}
                 >
                   {MULTI_SUITE.map((mode) => (
-                    /* 💡 잘림 방지: p-0.5에서 p-2로 올려서 내부 마진 공간을 확보했어! */
-                    <div key={mode.id} className="min-w-full p-2 flex flex-col">
+                    <div key={mode.id} className="min-w-full px-1 py-1.5 flex flex-col">
                       <Link 
                         href={mode.path} 
                         className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
@@ -454,8 +536,10 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+            {/* 🕹️ [END: MULTIPLAYER_SLIDER] 🕹️ */}
 
-            {/* 싱글플레이어 슬라이더 구역 */}
+
+            {/* 👤 [START: SINGLEPLAYER_SLIDER] 👤 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
@@ -468,8 +552,7 @@ export default function LandingPage() {
                   style={{ transform: `translateX(-${activeSingleSlide * 100}%)` }}
                 >
                   {SINGLE_SUITE.map((test) => (
-                    /* 💡 잘림 방지: 여기도 p-0.5에서 p-2로 교체 완료! */
-                    <div key={test.id} className="min-w-full p-2 flex flex-col">
+                    <div key={test.id} className="min-w-full px-1 py-1.5 flex flex-col">
                       <Link 
                         href={test.path} 
                         className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
@@ -537,20 +620,25 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+            {/* 👤 [END: SINGLEPLAYER_SLIDER] 👤 */}
 
           </div>
 
+          {/* 🏆 [START: LEADERBOARD_AREA] 🏆 */}
           <div className={`lg:col-span-5 border rounded-3xl p-6 sm:p-8 backdrop-blur-md h-full lg:min-h-[690px] ${s.leaderboardBg}`}>
             <Leaderboard lang={lang} />
           </div>
+          {/* 🏆 [END: LEADERBOARD_AREA] 🏆 */}
 
         </div>
       </main>
 
+
+      {/* 📋 [START: FOOTER_AREA] 📋 */}
       <footer className={`w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4 font-mono text-[9px] font-bold tracking-widest uppercase ${s.footerBorder}`}>
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
-          LABGG ENGINE SYSTEM RUNTIME {systemCoreTime && `[${systemCoreTime}]`}
+          LABGG ENGINE SYSTEM RUNTIME
         </div>
   
         <div className="flex items-center gap-4 text-zinc-500">
@@ -560,6 +648,7 @@ export default function LandingPage() {
         
         <div>LABGG.PRO © 2026</div>
       </footer>
+      {/* 📋 [END: FOOTER_AREA] 📋 */}
 
     </div>
   );
