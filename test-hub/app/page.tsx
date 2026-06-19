@@ -8,6 +8,7 @@ import Link from 'next/link';
 import MagicRings from './components/MagicRings'; 
 import RealTimeOnlineCounter from './components/RealTimeOnlineCounter';
 import Leaderboard from './components/Leaderboard';
+import BorderGlow from './components/BorderGlow'; // 💡 BorderGlow 임포트 추가!
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -372,9 +373,9 @@ export default function LandingPage() {
 
       {/* 🗺️ [START: NAVIGATION_BAR] 🗺️ */}
       <nav className={`relative z-50 w-full ${s.nav} border-b`}>
-        <div className="w-full px-6 sm:px-10 lg:px-12 py-4 flex flex-wrap justify-between items-center gap-y-3">
+        <div className="w-full px-5 sm:px-10 lg:px-12 py-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
           
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 font-mono text-xs font-bold">
+          <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-6 font-mono text-xs font-bold">
             <Link href="/" className={`text-base font-sans tracking-tight font-black transition-colors ${s.logoText}`}>
               LABGG.PRO
             </Link>
@@ -385,30 +386,15 @@ export default function LandingPage() {
               <div 
                 className={`absolute top-[3px] bottom-[3px] left-[3px] w-[32px] bg-gradient-to-r from-[#9e38ff] to-[#7928ca] shadow-[0_0_10px_rgba(158,56,255,0.4)] rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.2,1.4)] ${lang === 'en' ? 'transform translate-x-[32px]' : ''}`} 
               />
-              
-              <button 
-                onClick={() => handleLangChange('ko')} 
-                className={`relative z-10 w-[32px] h-full flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${lang === 'ko' ? 'text-white font-black' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                KR
-              </button>
-              <button 
-                onClick={() => handleLangChange('en')} 
-                className={`relative z-10 w-[32px] h-full flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${lang === 'en' ? 'text-white font-black' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                EN
-              </button>
+              <button onClick={() => handleLangChange('ko')} className={`relative z-10 w-[32px] h-full flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${lang === 'ko' ? 'text-white font-black' : 'text-zinc-500 hover:text-zinc-300'}`}>KR</button>
+              <button onClick={() => handleLangChange('en')} className={`relative z-10 w-[32px] h-full flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${lang === 'en' ? 'text-white font-black' : 'text-zinc-500 hover:text-zinc-300'}`}>EN</button>
             </div>
             {/* ⚡ [END: LANGUAGE_TOGGLE_UI] ⚡ */}
           </div>
 
-          <div className="flex items-center gap-4 font-mono text-[10px]">
+          <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-3 sm:gap-4 font-mono text-[10px]">
             {/* 📸 [START: INSTAGRAM_ICON_NAV] 📸 */}
-            <Link 
-              href="/socials" 
-              className="text-zinc-500 hover:text-[#9e38ff] transition-all duration-300 transform hover:scale-125 hover:rotate-6 active:scale-90 flex items-center justify-center p-1"
-              aria-label="Instagram"
-            >
+            <Link href="/socials" className="text-zinc-500 hover:text-[#9e38ff] transition-all duration-300 transform hover:scale-125 hover:rotate-6 active:scale-90 flex items-center justify-center p-1" aria-label="Instagram">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
                 <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
@@ -424,10 +410,7 @@ export default function LandingPage() {
                 <span className={`text-[9px] font-mono font-black px-1.5 py-0.5 rounded transition-all ${getLevelBadgeColor(level)}`}>{t.lvl}{level}</span>
               </Link>
             ) : (
-              <Link 
-                href="/login" 
-                className="relative inline-flex items-center justify-center font-sans text-[10px] font-black tracking-widest uppercase px-4 py-1.5 rounded-full text-zinc-400 border border-zinc-800 bg-zinc-950/30 overflow-hidden transition-all duration-300 hover:text-white hover:border-[#9e38ff] hover:shadow-[0_0_15px_rgba(158,56,255,0.3)] active:scale-95 group/loginbtn"
-              >
+              <Link href="/login" className="relative inline-flex items-center justify-center font-sans text-[10px] font-black tracking-widest uppercase px-4 py-1.5 rounded-full text-zinc-400 border border-zinc-800 bg-zinc-950/30 overflow-hidden transition-all duration-300 hover:text-white hover:border-[#9e38ff] hover:shadow-[0_0_15px_rgba(158,56,255,0.3)] active:scale-95 group/loginbtn">
                 <span className="absolute inset-0 z-0 bg-gradient-to-r from-[#9e38ff]/10 to-[#7928ca]/10 transform translate-y-full group-hover/loginbtn:translate-y-0 transition-transform duration-300" />
                 <span className="relative z-10 flex items-center gap-1.5">
                   {t.loginBtn}
@@ -494,31 +477,40 @@ export default function LandingPage() {
                 >
                   {MULTI_SUITE.map((mode) => (
                     <div key={mode.id} className="min-w-full px-1 py-1.5 flex flex-col">
-                      <Link 
-                        href={mode.path} 
-                        className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
+                      {/* 💡 여기에 BorderGlow 이식 완료! 💡 */}
+                      <BorderGlow
+                        backgroundColor="#0c0c0e"
+                        glowColor="277 100 65"
+                        colors={['#9e38ff', '#ff007f', '#42fcff']}
+                        borderRadius={22}
+                        className="flex-1 flex flex-col group/glowcard"
                       >
-                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
+                        <Link 
+                          href={mode.path} 
+                          className="relative p-7 sm:p-9 flex-1 flex flex-col justify-between transition-transform duration-300 group-hover/glowcard:scale-[1.01]"
+                        >
+                          <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
-                        <div className="space-y-2 pt-1 relative z-10">
-                          <div className="flex justify-between items-center">
-                            <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
-                              {mode.label}
-                            </span>
-                            <div className="w-8 h-8 rounded-lg border flex items-center justify-center hover:scale-105 transition-all bg-zinc-500/5 border-zinc-500/10">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={mode.activeColor}>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                <polyline points="12 5 19 12 12 19"></polyline>
-                              </svg>
+                          <div className="space-y-2 pt-1 relative z-10">
+                            <div className="flex justify-between items-center">
+                              <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${mode.activeColor}`}>
+                                {mode.label}
+                              </span>
+                              <div className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all bg-zinc-500/5 border-zinc-500/10 group-hover/glowcard:scale-110 group-hover/glowcard:border-[#9e38ff]/30">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={mode.activeColor}>
+                                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                                  <polyline points="12 5 19 12 12 19"></polyline>
+                                </svg>
+                              </div>
                             </div>
-                          </div>
 
-                          <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{mode.name}</h3>
-                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-3 ${s.textDesc}`}>
-                            {mode.desc}
-                          </p>
-                        </div>
-                      </Link>
+                            <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{mode.name}</h3>
+                            <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-3 ${s.textDesc}`}>
+                              {mode.desc}
+                            </p>
+                          </div>
+                        </Link>
+                      </BorderGlow>
                     </div>
                   ))}
                 </div>
@@ -567,42 +559,51 @@ export default function LandingPage() {
                 >
                   {SINGLE_SUITE.map((test) => (
                     <div key={test.id} className="min-w-full px-1 py-1.5 flex flex-col">
-                      <Link 
-                        href={test.path} 
-                        className={`relative p-7 sm:p-9 rounded-[1.4rem] transition-all duration-300 flex-1 flex flex-col justify-between overflow-hidden hover:scale-[1.01] ${s.sliderCard}`}
+                      {/* 💡 여기도 싱글플레이어 카드에 BorderGlow 이식 완료! 💡 */}
+                      <BorderGlow
+                        backgroundColor="#0c0c0e"
+                        glowColor="277 100 65"
+                        colors={['#9e38ff', '#ff007f', '#42fcff']}
+                        borderRadius={22}
+                        className="flex-1 flex flex-col group/glowcard"
                       >
-                        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
+                        <Link 
+                          href={test.path} 
+                          className="relative p-7 sm:p-9 flex-1 flex flex-col justify-between transition-transform duration-300 group-hover/glowcard:scale-[1.01]"
+                        >
+                          <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
 
-                        <div className="space-y-2 pt-0.5 relative z-10">
-                          <div className="flex justify-between items-center">
-                            <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
-                              {test.label}
-                            </span>
-                            <div className="w-8 h-8 rounded-lg border flex items-center justify-center hover:scale-105 transition-all bg-zinc-500/5 border-zinc-500/10">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={test.activeColor}>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                <polyline points="12 5 19 12 12 19"></polyline>
-                              </svg>
+                          <div className="space-y-2 pt-0.5 relative z-10">
+                            <div className="flex justify-between items-center">
+                              <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>
+                                {test.label}
+                              </span>
+                              <div className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all bg-zinc-500/5 border-zinc-500/10 group-hover/glowcard:scale-110 group-hover/glowcard:border-[#9e38ff]/30">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={test.activeColor}>
+                                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                                  <polyline points="12 5 19 12 12 19"></polyline>
+                                </svg>
+                              </div>
+                            </div>
+
+                            <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{test.name}</h3>
+                            <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-2 ${s.textDesc}`}>
+                              {test.desc}
+                            </p>
+                          </div>
+
+                          <div className={`flex flex-col sm:flex-row gap-4 sm:gap-6 border-t pt-5 font-mono text-xs relative z-10 ${s.sliderMutedText}`}>
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.standard}</span>
+                              <span className="text-zinc-200 font-black">{test.stat}</span>
+                            </div>
+                            <div className="space-y-0.5 sm:border-l sm:pl-6 border-zinc-500/10 dark:border-zinc-900/60">
+                              <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.myBest}</span>
+                              <span className={`font-black ${test.activeColor}`}>{test.myScore}</span>
                             </div>
                           </div>
-
-                          <h3 className={`text-2xl font-bold tracking-tight leading-tight ${s.sliderTitle}`}>{test.name}</h3>
-                          <p className={`text-xs font-medium max-w-md leading-relaxed line-clamp-2 ${s.textDesc}`}>
-                            {test.desc}
-                          </p>
-                        </div>
-
-                        <div className={`flex flex-col sm:flex-row gap-4 sm:gap-6 border-t pt-5 font-mono text-xs relative z-10 ${s.sliderMutedText}`}>
-                          <div className="space-y-0.5">
-                            <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.standard}</span>
-                            <span className="text-zinc-200 font-black">{test.stat}</span>
-                          </div>
-                          <div className="space-y-0.5 sm:border-l sm:pl-6 border-zinc-500/10 dark:border-zinc-900/60">
-                            <span className="text-[9px] opacity-40 font-bold uppercase tracking-wider block">{t.myBest}</span>
-                            <span className={`font-black ${test.activeColor}`}>{test.myScore}</span>
-                          </div>
-                        </div>
-                      </Link>
+                        </Link>
+                      </BorderGlow>
                     </div>
                   ))}
                 </div>

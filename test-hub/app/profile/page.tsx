@@ -5,155 +5,60 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, updateProfile, signOut, User } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'; 
 
-// 💡 레벨별 필요 경험치 공식
-const getNextXpForLevel = (lv: number): number => {
-  return Math.floor(Math.pow(lv, 1.5) * 50) + 100;
-};
+// 💡 분리된 컴포넌트 & 로직 임포트
+import { RANKED_UNLOCK_LEVEL, TWO_WEEKS_MS, getNextXpForLevel, getTierFromLp, TRANSLATIONS, getTitlesList } from './utils';
+import ProfileHeader from './components/ProfileHeader';
+import { InfoTab, CompTab, TitleTab } from './components/TabViews';
+import FriendsPanel from './friends';
 
-// 💡 10레벨 단위 뱃지 색상 반환 함수
-const getLevelBadgeColor = (lv: number): string => {
-  if (lv >= 40) return 'text-amber-400 bg-amber-500/10 border-amber-500/30'; 
-  if (lv >= 30) return 'text-purple-400 bg-purple-500/10 border-purple-500/30'; 
-  if (lv >= 20) return 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';     
-  if (lv >= 10) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'; 
-  return 'text-zinc-400 bg-zinc-900 border-zinc-800'; 
-};
-
-// 📊 [NEW] 경쟁전 누적 LP 기반 프로필 티어 변환 엔진
-interface TierStructure {
-  name: string;
-  division: string;
-  localLp: number;
-  color: string;
-}
-
-const getTierFromLp = (totalLp: number): TierStructure => {
-  if (totalLp < 0) totalLp = 0;
-  
-  const TIERS = [
-    { name: 'IRON', color: 'text-zinc-500 border-zinc-800 bg-zinc-500/5' },
-    { name: 'BRONZE', color: 'text-amber-700 border-amber-900 bg-amber-700/5' },
-    { name: 'SILVER', color: 'text-slate-300 border-slate-700 bg-slate-300/5' },
-    { name: 'GOLD', color: 'text-yellow-400 border-yellow-600/40 bg-yellow-400/5' },
-    { name: 'PLATINUM', color: 'text-emerald-400 border-emerald-600/40 bg-emerald-400/5' },
-    { name: 'DIAMOND', color: 'text-cyan-400 border-cyan-500/40 bg-cyan-400/5' },
-  ];
-
-  if (totalLp >= 1800) {
-    return {
-      name: 'MASTER',
-      division: '',
-      localLp: totalLp - 1800,
-      color: 'text-purple-400 border-purple-500/40 bg-purple-500/5 shadow-[0_0_15px_rgba(168,85,247,0.15)] font-black'
-    };
-  }
-
-  const tierIndex = Math.floor(totalLp / 300);
-  const remainder = totalLp % 300;
-  const divisionIndex = Math.floor(remainder / 100);
-  const localLp = remainder % 100;
-  const divisionMap = ['III', 'II', 'I'];
-  
-  return {
-    name: TIERS[tierIndex].name,
-    division: divisionMap[divisionIndex],
-    localLp: localLp,
-    color: TIERS[tierIndex].color
-  };
-};
-
-const TRANSLATIONS = {
-  ko: {
-    back: '← 홈으로',
-    loading: 'LOADING PHYSICAL PROFILE...',
-    unauthorized: '프로필을 확인하려면 먼저 로그인해 주세요.',
-    homeBtn: '홈으로 가기',
-    lvl: 'Lv.',
-    editBtn: '닉네임 변경',
-    logoutBtn: '로그아웃', 
-    saveBtn: '적용',
-    cancelBtn: '취소',
-    saving: '저장 중..',
-    xpTitle: '레벨업 경험치 (Level Up XP)',
-    statsTitle: 'HIGHEST METRICS',
-    statReaction: 'VISUAL REACTION',
-    statReactionDesc: '시각 반응 속도 최고 기록',
-    statCps: 'CLICKS PER SECOND',
-    statCpsDesc: '초당 클릭 속도 최고 기록',
-    tierTitle: 'COMPETITIVE RANK RATING', // 티어 타이틀 추가
-    collectionTitle: 'AVAILABLE TITLES COLLECTION',
-    equipped: '장착중',
-    equipBtn: '장착',
-    unequipBtn: '장착 해제',
-    activeBtn: 'Active',
-    noTitle: '칭호 없음',
-    title_dev: '개발자',
-    desc_dev: 'LABGG 시스템 빌더 전용 마스터 칭호',
-    title_ai: 'AI',
-    desc_ai: '조건: 반속 150ms 이하 AND CPS 13 이상 (인간 초월)',
-    title_godspeed: '전광석화',
-    desc_godspeed: '조건: 반속 180ms 이하 OR CPS 10 이상',
-    title_fast: '빠름',
-    desc_fast: '조건: 반속 230ms 이하 OR CPS 7 이상',
-    title_newbie: '뉴비',
-    desc_newbie: '기본으로 지급되는 파릇파릇한 새내기 칭호'
-  },
-  en: {
-    back: '← Back to Home',
-    loading: 'LOADING PHYSICAL PROFILE...',
-    unauthorized: 'Please sign in first to view your profile.',
-    homeBtn: 'Go to Home',
-    lvl: 'Lv.',
-    editBtn: 'Edit Nickname',
-    logoutBtn: 'Sign Out', 
-    saveBtn: 'Apply',
-    cancelBtn: 'Cancel',
-    saving: 'Saving...',
-    xpTitle: 'LEVEL UP XP',
-    statsTitle: 'HIGHEST METRICS',
-    statReaction: 'VISUAL REACTION',
-    statReactionDesc: 'Personal best visual reaction time',
-    statCps: 'CLICKS PER SECOND',
-    statCpsDesc: 'Personal best clicks per second',
-    tierTitle: 'COMPETITIVE RANK RATING',
-    collectionTitle: 'AVAILABLE TITLES COLLECTION',
-    equipped: 'Equipped',
-    equipBtn: 'Equip',
-    unequipBtn: 'Unequip',
-    activeBtn: 'Active',
-    noTitle: 'No Title',
-    title_dev: 'Developer',
-    desc_dev: 'Exclusive master title for LABGG core system builder',
-    title_ai: 'AI',
-    desc_ai: 'Req: Reaction ≤ 150ms AND CPS ≥ 13 (Beyond Human)',
-    title_godspeed: 'Lightning',
-    desc_godspeed: 'Req: Reaction ≤ 180ms OR CPS ≥ 10',
-    title_fast: 'Swift',
-    desc_fast: 'Req: Reaction ≤ 230ms OR CPS ≥ 7',
-    title_newbie: 'Newbie',
-    desc_newbie: 'A fresh new starter title granted to everyone'
-  }
-};
+type TabType = 'info' | 'comp' | 'title' | 'friends';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<TabType>('info');
   
+  // 데이터 상태
   const [reactionBest, setReactionBest] = useState<number>(0);
   const [cpsBest, setCpsBest] = useState<number>(0);
   const [level, setLevel] = useState<number>(1);
   const [xp, setXp] = useState<number>(0);
-  const [rankedLp, setRankedLp] = useState<number>(300); // 💡 경쟁전 LP 상태 추가 (기본 300)
+  const [rankedLp, setRankedLp] = useState<number>(300);
   const [currentTitleId, setCurrentTitleId] = useState<string>(''); 
   const [isDevFromDb, setIsDevFromDb] = useState<boolean>(false);
   
+  // 수정 상태
   const [displayName, setDisplayName] = useState<string>('');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
+  const [canEditName, setCanEditName] = useState<boolean>(true);
+  const [daysLeftToEdit, setDaysLeftToEdit] = useState<number>(0);
+
+  const isDevUser = isDevFromDb || user?.email === 'leehyeon110919@gmail.com' || user?.email === 'admin@lab.gg' || user?.email?.includes('dev') || process.env.NODE_ENV === 'development';
+
+  const generateUniqueNickname = async (baseName: string) => {
+    let cleanName = (baseName || "Player").replace(/\s+/g, '');
+    let initialName = cleanName.substring(0, 10);
+    const initialQ = query(collection(db, 'users'), where('displayName', '==', initialName));
+    const initialSnap = await getDocs(initialQ);
+    if (initialSnap.empty) return initialName;
+
+    if (cleanName.length > 6) cleanName = cleanName.substring(0, 6);
+    let isUnique = false;
+    let finalName = cleanName;
+
+    while (!isUnique) {
+      const randomTag = Math.floor(1000 + Math.random() * 9000);
+      finalName = `${cleanName}${randomTag}`.substring(0, 10);
+      const q = query(collection(db, 'users'), where('displayName', '==', finalName));
+      if ((await getDocs(q)).empty) isUnique = true;
+    }
+    return finalName;
+  };
 
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
@@ -162,19 +67,26 @@ export default function ProfilePage() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        setDisplayName(currentUser.displayName || 'Anonymous');
         const userDocRef = doc(db, 'users', currentUser.uid);
         const docSnap = await getDoc(userDocRef);
+        
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setReactionBest(data.reactionBest || 0);
-          setCpsBest(data.cpsBest || 0);
-          setLevel(data.level || 1);
-          setXp(data.xp || 0);
-          setRankedLp(data.rankedLp !== undefined ? data.rankedLp : 300); // 💡 LP 필드 매핑
-          setCurrentTitleId(data.currentTitle || ''); 
-          setIsDevFromDb(data.isDev === true);
-          if (data.displayName) setDisplayName(data.displayName);
+          setReactionBest(data.reactionBest || 0); setCpsBest(data.cpsBest || 0);
+          setLevel(data.level || 1); setXp(data.xp || 0); setRankedLp(data.rankedLp ?? 300);
+          setCurrentTitleId(data.currentTitle || ''); setIsDevFromDb(data.isDev === true);
+          setDisplayName(data.displayName || currentUser.displayName || 'Player');
+
+          const lastChange = data.lastNicknameChange || 0;
+          if (Date.now() - lastChange < TWO_WEEKS_MS) {
+            setCanEditName(false);
+            setDaysLeftToEdit(Math.ceil((TWO_WEEKS_MS - (Date.now() - lastChange)) / (1000 * 60 * 60 * 24))); 
+          } else setCanEditName(true);
+        } else {
+          const uniqueName = await generateUniqueNickname(currentUser.displayName || 'Player');
+          await setDoc(userDocRef, { displayName: uniqueName, level: 1, xp: 0, rankedLp: 300, createdAt: Date.now(), lastNicknameChange: 0 });
+          await updateProfile(currentUser, { displayName: uniqueName });
+          setDisplayName(uniqueName); setCanEditName(true); 
         }
       }
       setLoading(false);
@@ -183,198 +95,101 @@ export default function ProfilePage() {
   }, []);
 
   const t = TRANSLATIONS[lang];
-
-  const TITLES_LIST = [
-    { id: 'dev', text: t.title_dev, desc: t.desc_dev, color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' },
-    { id: 'ai', text: t.title_ai, desc: t.desc_ai, color: 'text-purple-400 bg-purple-500/10 border-purple-500/30' },
-    { id: 'godspeed', text: t.title_godspeed, desc: t.desc_godspeed, color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30' },
-    { id: 'fast', text: t.title_fast, desc: t.desc_fast, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' },
-    { id: 'newbie', text: t.title_newbie, desc: t.desc_newbie, color: 'text-zinc-300 bg-zinc-900 border-zinc-800' }
-  ];
+  const TITLES_LIST = getTitlesList(t);
 
   const handleSaveProfile = async () => {
-    if (!user || !displayName.trim()) return;
+    const newName = displayName.trim();
+    if (!user || !newName) return;
+    if (newName.length > 10) return alert(lang === 'ko' ? "닉네임은 최대 10글자까지만 가능합니다." : "Max 10 characters.");
+    
     setSaveLoading(true);
     try {
-      await updateProfile(user, { displayName: displayName.trim() });
-      await updateDoc(doc(db, 'users', user.uid), { displayName: displayName.trim() });
+      const q = query(collection(db, 'users'), where('displayName', '==', newName));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty && querySnapshot.docs[0].id !== user.uid) {
+        setSaveLoading(false);
+        return alert(lang === 'ko' ? "이미 사용 중인 닉네임입니다." : "Nickname already taken.");
+      }
+
+      await updateProfile(user, { displayName: newName });
+      await updateDoc(doc(db, 'users', user.uid), { displayName: newName, lastNicknameChange: Date.now() });
       setIsEditing(false);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSaveLoading(false);
-    }
+      
+      if (!isDevUser) { setCanEditName(false); setDaysLeftToEdit(14); }
+      alert(lang === 'ko' ? "닉네임이 변경되었습니다!" : "Nickname updated!");
+    } catch (e) { console.error(e); } 
+    finally { setSaveLoading(false); }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push('/');
-    } catch (e) {
-      console.error("로그아웃 실패:", e);
-    }
-  };
-
+  const handleLogout = async () => { await signOut(auth); router.push('/'); };
   const handleEquipToggle = async (titleId: string) => {
     if (!user) return;
-    try {
-      const nextTitle = currentTitleId === titleId ? '' : titleId;
-      await updateDoc(doc(db, 'users', user.uid), { currentTitle: nextTitle });
-      setCurrentTitleId(nextTitle);
-    } catch (e) {
-      console.error(e);
-    }
+    const nextTitle = currentTitleId === titleId ? '' : titleId;
+    await updateDoc(doc(db, 'users', user.uid), { currentTitle: nextTitle });
+    setCurrentTitleId(nextTitle);
   };
 
-  if (loading) return <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center text-xs tracking-widest uppercase">{t.loading}</div>;
-  if (!user) return <div className="min-h-screen bg-black text-zinc-100 font-sans flex flex-col items-center justify-center p-6 text-center space-y-4"><p className="text-zinc-400 font-mono text-xs">UNAUTHORIZED ACCESS</p><Link href="/" className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all">{t.homeBtn}</Link></div>;
+  if (loading) return <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center text-xs tracking-widest">{t.loading}</div>;
+  if (!user) return <div className="min-h-screen bg-black text-zinc-100 flex flex-col items-center justify-center p-6 text-center space-y-4"><p className="text-zinc-400 font-mono text-xs">UNAUTHORIZED ACCESS</p><Link href="/" className="px-4 py-2 bg-zinc-900 rounded-xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all">{t.homeBtn}</Link></div>;
 
-  // 🎯 [요구사항 반영] 내 이메일이 leehyeon110919@gmail.com 이면 전용 개발자 칭호 강제 마스터 언락 권한 부여
-  const isDevUser = isDevFromDb || user.email === 'leehyeon110919@gmail.com' || user.email === 'admin@lab.gg' || user.email?.includes('dev') || process.env.NODE_ENV === 'development';
-  
   const hasAi = reactionBest > 0 && reactionBest <= 150 && cpsBest >= 13;
   const hasGodspeed = hasAi || (reactionBest > 0 && reactionBest <= 180) || cpsBest >= 10;
   const hasFast = hasGodspeed || (reactionBest > 0 && reactionBest <= 230) || cpsBest >= 7;
 
   const unlockedTitles: Record<string, boolean> = { dev: isDevUser, ai: hasAi, godspeed: hasGodspeed, fast: hasFast, newbie: true };
-  const activeTitle = TITLES_LIST.find(t => t.id === currentTitleId);
+  const activeTitle = TITLES_LIST.find((t: any) => t.id === currentTitleId);
   const nextXpNeeded = getNextXpForLevel(level);
   const xpPercentage = Math.min(100, Math.round((xp / nextXpNeeded) * 100));
 
-  // 📈 내 현재 실시간 랭크 티어 계산용 객체
-  const myTier = getTierFromLp(rankedLp);
+  const isRankedUnlocked = level >= RANKED_UNLOCK_LEVEL;
+  const myTier = isRankedUnlocked ? getTierFromLp(rankedLp) : { name: t.unranked, division: '', localLp: 0, color: 'text-zinc-500 border-zinc-800 bg-zinc-500/5', xpBoost: 0 };
+
+  const TABS: { id: TabType; label: string; locked?: boolean }[] = [
+    { id: 'info', label: t.tab_info }, { id: 'comp', label: t.tab_comp, locked: !isRankedUnlocked },
+    { id: 'title', label: t.tab_title }, { id: 'friends', label: t.tab_friends },
+  ];
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none">
-      <div className="w-full max-w-4xl mx-auto flex justify-between items-center">
-        <Link href="/" className="text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors">{t.back}</Link>
-        <span className="font-mono text-[10px] text-zinc-500 font-bold tracking-widest">LABGG PHYSICAL ID: {user.uid.slice(0,8)}</span>
+    <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans antialiased flex flex-col select-none overflow-x-hidden">
+      <div className="fixed inset-0 z-[0] pointer-events-none opacity-20" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+      <nav className="sticky top-0 z-50 w-full bg-[#050505]/80 backdrop-blur-xl border-b border-zinc-900/60">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group w-20">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform group-hover:-translate-x-1 transition-transform"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <span className="text-[10px] font-mono font-bold tracking-widest uppercase mt-[1px] hidden sm:block">Back</span>
+          </Link>
+          <div className="flex-1 flex justify-center items-center gap-6 sm:gap-10 h-full">
+            {TABS.map((tab) => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative h-full text-[10px] sm:text-[11px] font-mono font-bold tracking-widest uppercase transition-colors flex items-center gap-1.5 ${activeTab === tab.id ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                {tab.label}
+                {tab.locked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-40"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>}
+                {activeTab === tab.id && <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.3)]" />}
+              </button>
+            ))}
+          </div>
+          <div className="w-20 text-right text-[9px] font-mono font-bold text-zinc-700 tracking-widest uppercase hidden sm:block">UID: {user?.uid.slice(0,5)}</div>
+        </div>
+      </nav>
+
+      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col space-y-6 p-4 sm:p-8 mt-4">
+        
+        <ProfileHeader 
+          user={user} displayName={displayName} setDisplayName={setDisplayName} 
+          isEditing={isEditing} setIsEditing={setIsEditing} saveLoading={saveLoading} 
+          handleSaveProfile={handleSaveProfile} handleLogout={handleLogout} 
+          level={level} myTier={myTier} activeTitle={activeTitle} 
+          canEditName={canEditName} daysLeftToEdit={daysLeftToEdit} isDevUser={isDevUser} t={t} lang={lang}
+        />
+
+        <div className="w-full min-h-[300px]">
+          {activeTab === 'info' && <InfoTab t={t} xp={xp} nextXpNeeded={nextXpNeeded} xpPercentage={xpPercentage} activeTitle={activeTitle} myTier={myTier} reactionBest={reactionBest} cpsBest={cpsBest} />}
+          {activeTab === 'comp' && <CompTab t={t} isRankedUnlocked={isRankedUnlocked} myTier={myTier} rankedLp={rankedLp} />}
+          {activeTab === 'title' && <TitleTab t={t} titlesList={TITLES_LIST} unlockedTitles={unlockedTitles} currentTitleId={currentTitleId} handleEquipToggle={handleEquipToggle} />}
+          {activeTab === 'friends' && <FriendsPanel lang={lang} />}
+        </div>
+
       </div>
-
-      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center my-4 space-y-5">
-        <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
-            <div className="w-20 h-20 rounded-full border-2 border-zinc-800 p-1 bg-black shrink-0 overflow-hidden">
-              <img src={user.photoURL || 'https://api.dicebear.com/7.x/bottts/svg'} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-            </div>
-            <div className="text-center sm:text-left space-y-1.5">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                {isEditing ? (
-                  <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={15} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-0.5 text-sm font-bold text-white focus:outline-none" />
-                ) : (
-                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{displayName}</h2>
-                )}
-                
-                <span className={`font-mono text-xs font-black px-2 py-0.5 rounded border ${getLevelBadgeColor(level)}`}>
-                  {t.lvl}{level}
-                </span>
-
-                {/* 📊 [NEW] 유저 메인 프로필에 실시간 연동 각인되는 미니멀 티어 뱃지 프레임 */}
-                <span className={`font-mono text-xs font-black px-2.5 py-0.5 rounded-md border tracking-wider uppercase ${myTier.color}`}>
-                  {myTier.name} {myTier.division}
-                </span>
-
-                {activeTitle ? (
-                  <span className={`text-xs font-sans font-bold px-3 py-1 rounded-md border tracking-wide uppercase ${activeTitle.color}`}>{activeTitle.text}</span>
-                ) : (
-                  <span className="text-xs font-sans font-bold px-3 py-1 rounded-md border border-zinc-800 bg-zinc-950 text-zinc-500 tracking-wide">{t.noTitle}</span>
-                )}
-              </div>
-              <p className="text-xs font-mono text-zinc-500">{user.email}</p>
-            </div>
-          </div>
-          
-          <div className="shrink-0 w-full sm:w-auto text-center sm:text-right">
-            {isEditing ? (
-              <div className="flex items-center justify-center sm:justify-end gap-2">
-                <button onClick={handleSaveProfile} disabled={saveLoading} className="px-4 py-1.5 bg-white text-black font-bold rounded-xl text-xs hover:bg-zinc-200">{saveLoading ? t.saving : t.saveBtn}</button>
-                <button onClick={() => { setIsEditing(false); setDisplayName(user.displayName || 'Anonymous'); }} className="px-4 py-1.5 bg-zinc-900 border border-zinc-800 text-zinc-300 font-bold rounded-xl text-xs">{t.cancelBtn}</button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center sm:justify-end gap-2">
-                <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-300 hover:text-white font-bold rounded-xl text-xs transition-all">{t.editBtn}</button>
-                <button onClick={handleLogout} className="px-4 py-2 bg-zinc-950 border border-zinc-900 text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-950/10 font-bold rounded-xl text-xs transition-all">
-                  {t.logoutBtn}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 레벨 레일 경험치 바 */}
-        <div className="bg-zinc-950 border border-zinc-900 px-5 py-4 rounded-xl space-y-2">
-          <div className="flex justify-between items-center font-mono text-xs">
-            <span className="text-zinc-400 font-bold">{t.xpTitle}</span>
-            <span className="text-zinc-200 font-black tracking-wide tabular-nums">{xp} <span className="text-zinc-600 font-normal">/</span> {nextXpNeeded} XP <span className="text-emerald-400 ml-1">({xpPercentage}%)</span></span>
-          </div>
-          <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden p-[2px] border border-zinc-900">
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" style={{ width: `${xpPercentage}%` }} />
-          </div>
-        </div>
-
-        {/* 📊 [NEW] 요구사항 반영: 프로필 하단에 탑재된 전술 경쟁전 랭킹 포인트 진척도 LP 바 장치 */}
-        <div className="bg-zinc-950 border border-zinc-900 p-5 rounded-2xl space-y-3">
-          <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.tierTitle}</div>
-          <div className="px-5 py-4 bg-zinc-950/40 border border-zinc-900/60 rounded-xl font-mono space-y-2.5">
-            <div className="flex justify-between items-center text-xs">
-              <span className={`font-black tracking-widest ${myTier.color}`}>{myTier.name} {myTier.division}</span>
-              <span className="text-zinc-300 font-black tabular-nums">{myTier.name === 'MASTER' ? `${rankedLp} TOTAL LP` : `${myTier.localLp} / 100 LP`}</span>
-            </div>
-            {myTier.name !== 'MASTER' && (
-              <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-zinc-100 h-full rounded-full transition-all duration-700" style={{ width: `${myTier.localLp}%` }} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 개인 레코드 매트릭스 보드 */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 space-y-3">
-          <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.statsTitle}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex justify-between items-center px-5 py-4 bg-zinc-950/40 border border-zinc-900/60 rounded-xl font-mono">
-              <div className="flex flex-col space-y-1">
-                <span className="font-bold text-zinc-200 text-xs tracking-wider">{t.statReaction}</span>
-                <span className="text-[11px] text-zinc-400 font-medium leading-none">{t.statReactionDesc}</span>
-              </div>
-              <span className="text-lg font-black text-zinc-200 tabular-nums">{reactionBest > 0 ? `${reactionBest}ms` : '---'}</span>
-            </div>
-            <div className="flex justify-between items-center px-5 py-4 bg-zinc-950/40 border border-zinc-900/60 rounded-xl font-mono">
-              <div className="flex flex-col space-y-1">
-                <span className="font-bold text-zinc-200 text-xs tracking-wider">{t.statCps}</span>
-                <span className="text-[11px] text-zinc-400 font-medium leading-none">{t.statCpsDesc}</span>
-              </div>
-              <span className="text-lg font-black text-emerald-400 tabular-nums">{cpsBest > 0 ? `${cpsBest} CPS` : '---'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 수집된 칭호 인벤토리 그리드 */}
-        <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 space-y-3">
-          <div className="text-[11px] font-mono font-black text-zinc-400 tracking-wider pb-1.5 border-b border-zinc-900 uppercase">{t.collectionTitle}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {TITLES_LIST.map((title) => {
-              const isUnlocked = unlockedTitles[title.id];
-              const isEquipped = currentTitleId === title.id;
-              return (
-                <div key={title.id} className={`flex items-center justify-between p-4 border rounded-xl transition-all ${isUnlocked ? 'bg-zinc-950 border-zinc-900 hover:border-zinc-800' : 'bg-zinc-950/10 border-zinc-950/20 opacity-20 select-none'}`}>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-sans font-bold px-2.5 py-0.5 rounded border uppercase tracking-wide ${title.color}`}>{title.text}</span>
-                      {isEquipped && <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-1.5 rounded border border-emerald-500/20">{t.equipped}</span>}
-                    </div>
-                    <p className="text-[11px] text-zinc-300 font-semibold">{title.desc}</p>
-                  </div>
-                  {isUnlocked && (
-                    <button onClick={() => handleEquipToggle(title.id)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${isEquipped ? 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white' : 'bg-zinc-900 border border-zinc-800 text-zinc-200 hover:bg-white hover:text-black'}`}>{isEquipped ? t.unequipBtn : t.equipBtn}</button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      <div className="w-full max-w-4xl mx-auto text-center font-mono text-[10px] text-zinc-600 font-bold uppercase tracking-widest">LABGG CORE PROFILE ENGINE v3.5</div>
     </div>
   );
 }
