@@ -5,7 +5,7 @@ import { User } from 'firebase/auth';
 // 💡 누락됐던 파이어베이스 검색 함수들(collection, query, where, getDocs) 다시 소환!
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { getTierFromLp } from './utils';
+import { getTierFromLp, RANKED_UNLOCK_LEVEL } from './utils';
 
 export default function FriendsPanel({ lang, currentUser }: { lang: 'ko' | 'en', currentUser: User | null }) {
   const [searchCode, setSearchCode] = useState('');
@@ -23,6 +23,7 @@ export default function FriendsPanel({ lang, currentUser }: { lang: 'ko' | 'en',
       reqBtn: '요청',
       online: 'ONLINE',
       offline: 'OFFLINE',
+      unranked: '언랭크',
       noFriends: '등록된 친구가 없습니다.',
       noRequests: '받은 요청이 없습니다.',
       listTitle: '친구 목록',
@@ -43,6 +44,7 @@ export default function FriendsPanel({ lang, currentUser }: { lang: 'ko' | 'en',
       reqBtn: 'SEND',
       online: 'ONLINE',
       offline: 'OFFLINE',
+      unranked: 'UNRANKED',
       noFriends: 'No friends added yet.',
       noRequests: 'No pending requests.',
       listTitle: 'FRIENDS',
@@ -220,7 +222,15 @@ export default function FriendsPanel({ lang, currentUser }: { lang: 'ko' | 'en',
           ) : (
             <div className="grid grid-cols-1 gap-2.5">
               {friends.map((friend) => {
-                const fTier = getTierFromLp(friend.rankedLp || 300);
+                // 💡 친구의 레벨이 15(RANKED_UNLOCK_LEVEL)가 안 되면 강제로 언랭크 처리!
+const isFriendRankedUnlocked = (friend.level || 1) >= RANKED_UNLOCK_LEVEL;
+const fTier = isFriendRankedUnlocked 
+  ? getTierFromLp(friend.rankedLp ?? 300) 
+  : {
+      name: t.unranked,
+      division: '',
+      color: 'text-zinc-500 border-zinc-800 bg-zinc-500/5'
+    };
                 const isOnline = checkIsOnline(friend.lastActive);
 
                 return (
