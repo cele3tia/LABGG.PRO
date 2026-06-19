@@ -186,7 +186,7 @@ export default function ProfilePage() {
           {activeTab === 'info' && <InfoTab t={t} xp={xp} nextXpNeeded={nextXpNeeded} xpPercentage={xpPercentage} activeTitle={activeTitle} myTier={myTier} reactionBest={reactionBest} cpsBest={cpsBest} />}
           {activeTab === 'comp' && <CompTab t={t} isRankedUnlocked={isRankedUnlocked} myTier={myTier} rankedLp={rankedLp} />}
           {activeTab === 'title' && <TitleTab t={t} titlesList={TITLES_LIST} unlockedTitles={unlockedTitles} currentTitleId={currentTitleId} handleEquipToggle={handleEquipToggle} />}
-          {activeTab === 'friends' && <FriendsPanel lang={lang} />}
+          {activeTab === 'friends' && <FriendsPanel lang={lang} currentUser={user} />}
         </div>
 
       </div>
