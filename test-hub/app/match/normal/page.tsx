@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// 💡 normal 폴더 기준 상위 3단계 (app/match/normal -> app/ -> lib/firebase)
+// 💡 네가 확인한 정상 작동 경로 반영 완료!
 import { auth, database, db } from '../../lib/firebase'; 
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { ref, onValue, update, set, get } from 'firebase/database';
 import { doc, getDoc } from 'firebase/firestore';
 
-// 💡 같은 폴더 및 하위 components 폴더 경로 정렬
+// 💡 유틸 및 컴포넌트 임포트
 import { MatchState, GameType, PlayerInfo, RoundScore, TRANSLATIONS, getRoundGapText } from './utils';
 import { IdleScreen, QueueScreen, PlayingScreen, ResultScreen } from './components/GameScreens';
 
@@ -102,7 +102,6 @@ export default function CasualMatchPage() {
       }
 
       if (matchedOpponent) {
-        // 상대방이 먼저 대기열에 존재할 때 룸 인스턴스 초기화 주입
         const generatedRoomId = `normal_room_${matchedOpponent.uid}_${user.uid}`;
         const roomRef = ref(database, `rooms/${generatedRoomId}`);
         const selectedGame: GameType = Math.random() > 0.5 ? 'reaction' : 'cps';
@@ -121,7 +120,6 @@ export default function CasualMatchPage() {
         setActiveRoomId(generatedRoomId);
         subscribeRoomChannel(generatedRoomId);
       } else {
-        // 대기자가 없을 시 큐 채널 노드 슬롯 생성 후 리스닝 진입
         const myQueueRef = ref(database, `queue/normal/${user.uid}`);
         await set(myQueueRef, { uid: user.uid, displayName: user.displayName || 'Operator', photoURL: user.photoURL || '', level: myProfile.level, currentTitle: myProfile.currentTitle, roomId: null, joinedAt: Date.now() });
 
@@ -131,7 +129,7 @@ export default function CasualMatchPage() {
           if (val.roomId) {
             setActiveRoomId(val.roomId);
             subscribeRoomChannel(val.roomId);
-            set(myQueueRef, null); // 큐 노드 파기
+            set(myQueueRef, null);
           }
         });
       }
@@ -184,20 +182,11 @@ export default function CasualMatchPage() {
     });
   };
 
-  // ⚙️ 매치 룸 스태터스 상태 변이 트리거에 따른 타이머 스케줄러 디스패치
+  // ⚙️ [버그 수정본] 1. 매치 룸 스태터스 상태 변이 트리거에 따른 게임 초기화
   useEffect(() => {
     if (matchState === 'countdown') {
       setCountdownNum(3);
       setLocalGameState('idle');
-      const interval = setInterval(() => {
-        setCountdownNum((prev) => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            if (isHost) update(ref(database, `rooms/${activeRoomId}`), { status: 'playing' });
-          }
-          return prev - 1;
-        });
-      }, 1000);
     } else if (matchState === 'playing') {
       if (gameType === 'reaction') {
         setLocalGameState('ready');
@@ -227,6 +216,24 @@ export default function CasualMatchPage() {
       }
     }
   }, [matchState]);
+
+  // ⏳ [버그 수정본] 2. 카운트다운 자체를 안전하게 감소시키는 독립 타이머
+  useEffect(() => {
+    if (matchState !== 'countdown') return;
+    
+    const interval = setInterval(() => {
+      setCountdownNum((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [matchState]);
+
+  // 🚀 [버그 수정본] 3. 카운트다운이 0이 되면 실시간 방장 권한을 체크하여 게임 스타트 신호 주입
+  useEffect(() => {
+    if (matchState === 'countdown' && countdownNum === 0 && isHost && activeRoomId) {
+      update(ref(database, `rooms/${activeRoomId}`), { status: 'playing' });
+    }
+  }, [countdownNum, matchState, isHost, activeRoomId]);
 
   const handleGamePanelClick = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -265,13 +272,11 @@ export default function CasualMatchPage() {
     <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col justify-between p-6 sm:p-10 select-none relative overflow-hidden">
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none z-0" style={{ backgroundImage: 'linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
 
-      {/* 상단 툴바 내비게이터 구역 */}
       <div className="relative z-10 w-full max-w-5xl mx-auto flex justify-between items-center border-b border-zinc-900 pb-5">
         <Link href="/" onClick={leaveQueueDirectly} className="text-xs font-mono font-bold text-zinc-500 hover:text-white transition-colors">{t.back}</Link>
         <span className="text-[10px] font-mono font-black text-zinc-500 tracking-[0.25em]">{t.nodeLabel}</span>
       </div>
 
-      {/* 렌더링 스위처 코어 무대 */}
       <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center my-6 relative z-10">
         {matchState === 'idle' && <IdleScreen t={t} errorMessage={errorMessage} onStart={handleStartMatchmaking} />}
         {matchState === 'queue' && <QueueScreen t={t} queueSeconds={queueSeconds} onCancel={handleCancelMatchmaking} />}
@@ -312,7 +317,6 @@ export default function CasualMatchPage() {
         )}
       </div>
 
-      {/* 시스템 푸터 인포 배너 */}
       <div className="w-full max-w-5xl mx-auto border-t border-zinc-900/60 pt-5 font-mono text-[9px] text-zinc-600 flex justify-between items-center uppercase tracking-wider relative z-10">
         <div>LABGG LIVE ROOM METRICS v1.2</div>
         <div>REALTIME DISPATCH ENGINE SECURITY LOCK</div>
