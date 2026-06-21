@@ -1,5 +1,8 @@
 'use client';
 
+/* ==========================================
+   [START: IMPORTS_AND_TYPES]
+   ========================================== */
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -16,6 +19,9 @@ import FriendsPanel from './friends';
 type TabType = 'info' | 'comp' | 'title' | 'friends';
 
 export default function ProfilePage() {
+  /* ==========================================
+     [START: STATE_AND_ROUTER]
+     ========================================== */
   const router = useRouter();
   const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [user, setUser] = useState<User | null>(null);
@@ -60,6 +66,9 @@ export default function ProfilePage() {
     return finalName;
   };
 
+  /* ==========================================
+     [START: INITIAL_EFFECTS]
+     ========================================== */
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
     if (savedLang) setLang(savedLang);
@@ -93,10 +102,24 @@ export default function ProfilePage() {
     });
     return () => unsubscribe();
   }, []);
+  /* ==========================================
+     [END: INITIAL_EFFECTS]
+     ========================================== */
 
+
+  /* ==========================================
+     [START: TRANSLATION_DATA]
+     ========================================== */
   const t = TRANSLATIONS[lang];
   const TITLES_LIST = getTitlesList(t);
+  /* ==========================================
+     [END: TRANSLATION_DATA]
+     ========================================== */
 
+
+  /* ==========================================
+     [START: ACTION_HANDLERS]
+     ========================================== */
   const handleSaveProfile = async () => {
     const newName = displayName.trim();
     if (!user || !newName) return;
@@ -121,13 +144,30 @@ export default function ProfilePage() {
     finally { setSaveLoading(false); }
   };
 
-  const handleLogout = async () => { await signOut(auth); router.push('/'); };
+  // 💡 [수정 완료] 로그아웃 가로채기 방어벽 장착
+  const handleLogout = async () => { 
+    if (user?.isAnonymous) {
+      const confirmLogout = window.confirm(
+        lang === 'ko'
+          ? '⚠️ 경고: 현재 게스트 모드로 접속 중입니다!\n지금 로그아웃하시면 공들여 쌓은 모든 점수와 레벨, 경험치가 영원히 삭제됩니다.\n\n정말 로그아웃하시겠습니까?'
+          : '⚠️ Warning: You are currently in Guest Mode!\nLogging out will permanently delete all your scores, levels, and XP.\n\nAre you sure you want to log out?'
+      );
+      if (!confirmLogout) return; // 취소 누르면 로그아웃 중단
+    }
+    
+    await signOut(auth); 
+    router.push('/'); 
+  };
+
   const handleEquipToggle = async (titleId: string) => {
     if (!user) return;
     const nextTitle = currentTitleId === titleId ? '' : titleId;
     await updateDoc(doc(db, 'users', user.uid), { currentTitle: nextTitle });
     setCurrentTitleId(nextTitle);
   };
+  /* ==========================================
+     [END: ACTION_HANDLERS]
+     ========================================== */
 
   if (loading) return <div className="min-h-screen bg-black text-zinc-400 font-mono flex items-center justify-center text-xs tracking-widest">{t.loading}</div>;
   if (!user) return <div className="min-h-screen bg-black text-zinc-100 flex flex-col items-center justify-center p-6 text-center space-y-4"><p className="text-zinc-400 font-mono text-xs">UNAUTHORIZED ACCESS</p><Link href="/" className="px-4 py-2 bg-zinc-900 rounded-xl text-xs font-bold text-white hover:bg-white hover:text-black transition-all">{t.homeBtn}</Link></div>;
