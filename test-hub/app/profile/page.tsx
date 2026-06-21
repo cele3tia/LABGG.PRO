@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// 구글 프로바이더 및 연동 모듈 임포트
 import { auth, db, googleProvider } from '../lib/firebase';
 import { onAuthStateChanged, updateProfile, signOut, User, linkWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'; 
@@ -122,8 +121,40 @@ export default function ProfilePage() {
   const TITLES_LIST = getTitlesList(t);
 
   /* ==========================================
+     [START: LOCAL_DYNAMIC_TEXT_MAP]
+     ========================================== */
+  // 💡 모달 및 배너의 완벽한 한영 연동을 위한 로컬 독립 딕셔너리 구축
+  const uiText = {
+    ko: {
+      bannerTitle: '게스트 계정 보호 활성화됨',
+      bannerDesc: '지금 구글 계정과 연동하시면 로그아웃해도 현재 레벨, XP, 기록 보드가 안전하게 정식 영구 저장됩니다.',
+      bannerBtn: '구글 계정 연동하기',
+      modalTitle: '데이터 영구 삭제 경고',
+      modalDesc: '현재 게스트 계정입니다. 지금 계정 연동 없이 로그아웃하시면 공들여 쌓아온 모든 전적, 레벨, 누적 경험치가 시스템 DB에서 즉시 완전 삭제되며 영구 복구가 불가능합니다.',
+      modalSuccess: '🎉 계정 연동 성공! 회원 승격 정산 중...',
+      modalLinkBtn: '🚀 구글 계정 연동하고 기록 지키기',
+      modalLogoutBtn: '그냥 로그아웃 (기록 폭파)',
+      modalCancelBtn: '취소하고 플레이로 돌아가기'
+    },
+    en: {
+      bannerTitle: 'GUEST ACCOUNT PROTECTION ACTIVE',
+      bannerDesc: 'Link your Google account now to permanently secure your current level, XP, and record boards.',
+      bannerBtn: 'Link Google Account',
+      modalTitle: 'PERMANENT DATA LOSS WARNING',
+      modalDesc: 'You are currently using a Guest Account. Logging out without linking will instantly and permanently erase all your stats, levels, and accumulated XP from the server database.',
+      modalSuccess: '🎉 Account Linked Successfully! Upgrading profile...',
+      modalLinkBtn: '🚀 Link Google Account & Secure Data',
+      modalLogoutBtn: 'Discard & Log Out Anyway',
+      modalCancelBtn: 'Cancel & Return to Profile'
+    }
+  }[lang];
+  /* ==========================================
+     [END: LOCAL_DYNAMIC_TEXT_MAP]
+     ========================================== */
+
+  /* ==========================================
      [START: ACTION_HANDLERS]
-     ========================================= */
+     ========================================== */
   const handleSaveProfile = async () => {
     const newName = displayName.trim();
     if (!user || !newName) return;
@@ -148,7 +179,6 @@ export default function ProfilePage() {
     finally { setSaveLoading(false); }
   };
 
-  // 계정 연동 마이그레이션 핸들러
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     setError('');
@@ -170,7 +200,6 @@ export default function ProfilePage() {
     }
   };
 
-  // 로그아웃 가로채기 모달 호출
   const handleLogout = async () => { 
     if (user?.isAnonymous) {
       setShowLinkModal(true); 
@@ -215,31 +244,31 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans antialiased flex flex-col select-none overflow-x-hidden relative">
-      <div className="fixed inset-0 z-[0] pointer-events-none opacity-20" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+    <div className="min-h-screen bg-[#030303] text-zinc-100 font-sans antialiased flex flex-col select-none overflow-x-hidden relative">
+      <div className="fixed inset-0 z-[0] pointer-events-none opacity-[0.15]" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      {/* 게스트용 실시간 계정 연동 인-UI 상단 배너 */}
+      {/* 💡 [모던 패치 1] 게스트 연동 상단 인-UI 하이테크 플랫 배너 (한영 연동 완료) */}
       {user?.isAnonymous && (
-        <div className="w-full bg-gradient-to-r from-purple-950/40 to-fuchsia-950/20 border-b border-purple-500/20 p-4 relative z-50">
-          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="space-y-0.5 text-center sm:text-left">
-              <p className="text-xs font-mono font-black text-purple-400 tracking-wider uppercase flex items-center justify-center sm:justify-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
-                GUEST ACCOUNT PROTECTION ACTIVE
+        <div className="w-full bg-zinc-950/40 border-b border-white/[0.06] p-4 relative z-50">
+          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="space-y-0.5 text-center md:text-left">
+              <p className="text-[10px] font-mono font-black text-purple-400 tracking-[0.15em] uppercase flex items-center justify-center md:justify-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                {uiText.bannerTitle}
               </p>
-              <p className="text-xs text-zinc-400">지금 구글 계정과 연동하시면 로그아웃해도 현재 레벨, XP, 기록 보드가 안전하게 정식 영구 저장됩니다.</p>
+              <p className="text-xs text-zinc-500 max-w-2xl font-medium">{uiText.bannerDesc}</p>
             </div>
             <button 
               onClick={handleLinkAccount}
-              className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-xs font-black tracking-widest uppercase rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
+              className="px-4 py-2 bg-zinc-100 hover:bg-white text-black text-xs font-black tracking-widest uppercase rounded-xl transition-all whitespace-nowrap active:scale-95 shadow-lg"
             >
-              구글 계정 연동하기
+              {uiText.bannerBtn}
             </button>
           </div>
         </div>
       )}
 
-      <nav className="sticky top-0 z-50 w-full bg-[#050505]/80 backdrop-blur-xl border-b border-zinc-900/60">
+      <nav className="sticky top-0 z-50 w-full bg-[#030303]/70 backdrop-blur-xl border-b border-white/[0.05]">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors group w-20">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="transform group-hover:-translate-x-1 transition-transform"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -259,7 +288,6 @@ export default function ProfilePage() {
       </nav>
 
       <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col space-y-6 p-4 sm:p-8 mt-4">
-        
         <ProfileHeader 
           user={user} displayName={displayName} setDisplayName={setDisplayName} 
           isEditing={isEditing} setIsEditing={setIsEditing} saveLoading={saveLoading} 
@@ -276,44 +304,43 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 화면 전체 커스텀 인-UI 모달 레이어 패널 */}
+      {/* 💡 [모던 패치 2] 미니멀 다크 스페이스 모달 레이어 패널 (한영 완벽 연동) */}
       {showLinkModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#0a0a0d] border border-purple-500/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_0_50px_rgba(158,56,255,0.2)] animate-in zoom-in-95 duration-300 text-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#09090b] border border-white/[0.08] rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.9),0_0_40px_rgba(158,56,255,0.12)] animate-in zoom-in-95 duration-300 text-center">
             
-            <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto animate-pulse">
-              <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div className="w-11 h-12 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-white uppercase tracking-wide">데이터 영구 삭제 경고</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                현재 게스트 계정입니다. 지금 계정 연동 없이 로그아웃하시면 공들여 쌓아온 <span className="text-purple-400 font-bold">모든 전적, 레벨, 누적 경험치</span>가 시스템 DB에서 즉시 완전 삭제되며 영구 복구가 불가능합니다.
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black text-white uppercase tracking-wider font-mono">{uiText.modalTitle}</h3>
+              <p className="text-xs text-zinc-500 leading-relaxed font-medium">
+                {uiText.modalDesc}
               </p>
             </div>
 
-            {linkError && <p className="text-[11px] font-mono text-red-400 bg-red-500/5 p-2.5 rounded-lg border border-red-500/10">{linkError}</p>}
-            {linkSuccess && <p className="text-[11px] font-mono text-emerald-400 bg-emerald-500/5 p-2.5 rounded-lg border border-emerald-500/10 animate-bounce">🎉 계정 연동 성공! 회원 승격 정산 중...</p>}
+            {linkError && <p className="text-[11px] font-mono text-red-400 bg-red-500/5 p-2.5 rounded-xl border border-red-500/10 text-center">{linkError}</p>}
+            {linkSuccess && <p className="text-[11px] font-mono text-emerald-400 bg-emerald-500/5 p-2.5 rounded-xl border border-emerald-500/10 animate-pulse">{uiText.modalSuccess}</p>}
 
-            <div className="flex flex-col gap-2.5 pt-2">
+            <div className="flex flex-col gap-2 pt-1">
               <button 
                 onClick={handleLinkAccount}
-                className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-xs font-black tracking-widest uppercase rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all"
+                className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-black tracking-widest uppercase rounded-xl shadow-md hover:brightness-110 active:scale-[0.98] transition-all"
               >
-                🚀 구글 계정 연동하고 기록 지키기
+                {uiText.modalLinkBtn}
               </button>
               <button 
                 onClick={executeActualSignOut}
-                className="w-full py-3.5 bg-zinc-950 border border-zinc-900 hover:bg-zinc-900 text-zinc-500 hover:text-red-400 text-xs font-bold tracking-widest uppercase rounded-xl transition-all"
+                className="w-full py-3 bg-zinc-900 border border-white/[0.05] hover:bg-zinc-800 text-zinc-400 hover:text-red-400 text-xs font-bold tracking-widest uppercase rounded-xl transition-all"
               >
-                그냥 로그아웃 (기록 폭파)
+                {uiText.modalLogoutBtn}
               </button>
-              {/* 💡 구문 오류 주석 제거 후 완벽하게 튜닝한 취소 버튼 패널 */}
               <button 
                 onClick={() => { setShowLinkModal(false); setError(''); }}
                 className="w-full py-2 text-zinc-600 hover:text-zinc-400 text-[10px] font-mono font-bold tracking-widest uppercase transition-all"
               >
-                취소하고 플레이로 돌아가기
+                {uiText.modalCancelBtn}
               </button>
             </div>
 
