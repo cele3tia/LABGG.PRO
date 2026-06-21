@@ -12,7 +12,7 @@ import BorderGlow from './components/BorderGlow';
 import HomeNav from './main/HomeNav'; 
 import { TRANSLATIONS, themeStyles as s, getLevelBadgeColor } from './main/homeData'; 
 
-// 💡 파이어베이스 임포트 (가운데 패널 삭제로 안 쓰는 RTDB 로직 제거)
+// 💡 파이어베이스 임포트
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -95,9 +95,9 @@ export default function LandingPage() {
   ];
 
   const SINGLE_SUITE = [
-    { id: 'reaction', name: t.tests.reaction.name, label: t.tests.reaction.label, desc: t.tests.reaction.desc, stat: t.tests.reaction.stat, myScore: fbStats.reactionBest, path: '/reaction', activeColor: 'text-emerald-400', activeBg: 'bg-emerald-500', btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]', dotColor: 'rgba(16,185,129,0.15)' },
-    { id: 'cps', name: t.tests.cps.name, label: t.tests.cps.label, desc: t.tests.cps.desc, stat: t.tests.cps.stat, myScore: fbStats.cpsBest, path: '/cps', activeColor: 'text-cyan-400', activeBg: 'bg-cyan-500', btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]', dotColor: 'rgba(34,211,238,0.15)' },
-    { id: 'precision', name: t.tests.precision.name, label: t.tests.precision.label, desc: t.tests.precision.desc, stat: t.tests.precision.stat, myScore: fbStats.precisionBest, path: '/untitled', activeColor: 'text-violet-400', activeBg: 'bg-violet-500', btnGlow: 'shadow-[0_0_15px_rgba(139,92,246,0.2)]', dotColor: 'rgba(139,92,246,0.15)' }
+    { id: 'precision', name: t.tests.precision.name, label: t.tests.precision.label, desc: t.tests.precision.desc, stat: t.tests.precision.stat, myScore: fbStats.precisionBest, path: '/untitled', activeColor: 'text-violet-400', activeBg: 'bg-violet-500', btnGlow: 'shadow-[0_0_15px_rgba(139,92,246,0.2)]', dotColor: 'rgba(139,92,246,0.15)', isNew: true },
+    { id: 'reaction', name: t.tests.reaction.name, label: t.tests.reaction.label, desc: t.tests.reaction.desc, stat: t.tests.reaction.stat, myScore: fbStats.reactionBest, path: '/reaction', activeColor: 'text-emerald-400', activeBg: 'bg-emerald-500', btnGlow: 'shadow-[0_0_15px_rgba(16,185,129,0.2)]', dotColor: 'rgba(16,185,129,0.15)', isNew: false },
+    { id: 'cps', name: t.tests.cps.name, label: t.tests.cps.label, desc: t.tests.cps.desc, stat: t.tests.cps.stat, myScore: fbStats.cpsBest, path: '/cps', activeColor: 'text-cyan-400', activeBg: 'bg-cyan-500', btnGlow: 'shadow-[0_0_15px_rgba(34,211,238,0.2)]', dotColor: 'rgba(34,211,238,0.15)', isNew: false }
   ];
 
   const handleMultiPrev = () => setActiveMultiSlide((prev) => (prev === 0 ? MULTI_SUITE.length - 1 : prev - 1));
@@ -118,7 +118,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
 
-      {/* 💡 상단 내비게이션 바 컴포넌트 */}
+      {/* 상단 내비게이션 바 컴포넌트 */}
       <HomeNav 
         lang={lang} 
         onLangChange={handleLangChange} 
@@ -139,10 +139,8 @@ export default function LandingPage() {
             <span className="transition-colors">{t.title1}</span><br />
             <span className={`block mt-2 transition-colors ${s.title2}`}>{t.title2}</span>
           </h1>
-          <p className={`max-w-lg font-medium text-sm transition-colors ${s.desc}`}>{t.desc}</p>
+          <p className="max-w-lg font-medium text-sm transition-colors text-zinc-400">{t.desc}</p>
         </div>
-
-        {/* 👇 문제가 된 "가운데 패널" 완벽하게 제거됨 👇 */}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
           
@@ -212,7 +210,16 @@ export default function LandingPage() {
                           <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${test.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
                           <div className="space-y-2 pt-0.5 relative z-10">
                             <div className="flex justify-between items-center">
-                              <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>{test.label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>{test.label}</span>
+                                {/* 💡 하이엔드 하이퍼 강조 NEW 배지 탑재 (그라데이션 + 펄싱 도트 + 글로우 기능 통합) */}
+                                {test.isNew && (
+                                  <span className="text-[9px] font-sans font-black px-2 py-0.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded shadow-[0_0_15px_rgba(168,85,247,0.5)] tracking-wider animate-pulse flex items-center gap-1 uppercase">
+                                    <span className="w-1 h-1 rounded-full bg-white animate-ping" />
+                                    NEW MODE
+                                  </span>
+                                )}
+                              </div>
                               <div className="w-8 h-8 rounded-lg border flex items-center justify-center transition-all bg-zinc-500/5 border-zinc-500/10 group-hover/glowcard:scale-110 group-hover/glowcard:border-[#9e38ff]/30">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={test.activeColor}><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                               </div>
