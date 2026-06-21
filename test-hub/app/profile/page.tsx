@@ -6,17 +6,21 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, updateProfile, signOut, User } from 'firebase/auth';
+// 💡 구글 프로바이더 및 연동 모듈(linkWithPopup, GoogleAuthProvider) 추가 임포트
+import { auth, db, googleProvider } from '../lib/firebase';
+import { onAuthStateChanged, updateProfile, signOut, User, linkWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'; 
 
-// 💡 분리된 컴포넌트 & 로직 임포트
+// 분리된 컴포넌트 & 로직 임포트
 import { RANKED_UNLOCK_LEVEL, TWO_WEEKS_MS, getNextXpForLevel, getTierFromLp, TRANSLATIONS, getTitlesList } from './utils';
 import ProfileHeader from './components/ProfileHeader';
 import { InfoTab, CompTab, TitleTab } from './components/TabViews';
 import FriendsPanel from './friends';
 
 type TabType = 'info' | 'comp' | 'title' | 'friends';
+/* ==========================================
+   [END: IMPORTS_AND_TYPES]
+   ========================================== */
 
 export default function ProfilePage() {
   /* ==========================================
@@ -37,12 +41,20 @@ export default function ProfilePage() {
   const [currentTitleId, setCurrentTitleId] = useState<string>(''); 
   const [isDevFromDb, setIsDevFromDb] = useState<boolean>(false);
   
-  // 수정 상태
+  // 수정 및 연동 시스템 모달 컨트롤 상태 추가
   const [displayName, setDisplayName] = useState<string>('');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
   const [canEditName, setCanEditName] = useState<boolean>(true);
   const [daysLeftToEdit, setDaysLeftToEdit] = useState<number>(0);
+
+  // 💡 팝업창 원천 차단용 인-UI UI 모달 상태
+  const [showLinkModal, setShowLinkModal] = useState<boolean>(false);
+  const [linkError, setError] = useState<string>('');
+  const [linkSuccess, setLinkSuccess] = useState<boolean>(false);
+  /* ==========================================
+     [END: STATE_AND_ROUTER]
+     ========================================== */
 
   const isDevUser = isDevFromDb || user?.email === 'leehyeon110919@gmail.com' || user?.email === 'admin@lab.gg' || user?.email?.includes('dev') || process.env.NODE_ENV === 'development';
 
@@ -106,16 +118,8 @@ export default function ProfilePage() {
      [END: INITIAL_EFFECTS]
      ========================================== */
 
-
-  /* ==========================================
-     [START: TRANSLATION_DATA]
-     ========================================== */
   const t = TRANSLATIONS[lang];
   const TITLES_LIST = getTitlesList(t);
-  /* ==========================================
-     [END: TRANSLATION_DATA]
-     ========================================== */
-
 
   /* ==========================================
      [START: ACTION_HANDLERS]
@@ -144,17 +148,38 @@ export default function ProfilePage() {
     finally { setSaveLoading(false); }
   };
 
-  // 💡 [수정 완료] 로그아웃 가로채기 방어벽 장착
+  // 💡 [실시간 계정 연동 코어 마이그레이션 엔진]
+  const handleLinkAccount = async () => {
+    if (!auth.currentUser) return;
+    setError('');
+    try {
+      const provider = new GoogleAuthProvider();
+      await linkWithPopup(auth.currentUser, provider);
+      
+      setLinkSuccess(true);
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/credential-already-in-use') {
+        setError(lang === 'ko' ? '이 구글 계정은 이미 등록된 회원입니다. 다른 구글 계정을 선택해 주세요.' : 'This Google account is already linked to another user.');
+      } else {
+        setError(err.message);
+      }
+    }
+  };
+
+  // 💡 [수정] 로그아웃 가로채서 인-UI 수축 모달 레이어 호출
   const handleLogout = async () => { 
     if (user?.isAnonymous) {
-      const confirmLogout = window.confirm(
-        lang === 'ko'
-          ? '⚠️ 경고: 현재 게스트 모드로 접속 중입니다!\n지금 로그아웃하시면 공들여 쌓은 모든 점수와 레벨, 경험치가 영원히 삭제됩니다.\n\n정말 로그아웃하시겠습니까?'
-          : '⚠️ Warning: You are currently in Guest Mode!\nLogging out will permanently delete all your scores, levels, and XP.\n\nAre you sure you want to log out?'
-      );
-      if (!confirmLogout) return; // 취소 누르면 로그아웃 중단
+      setShowLinkModal(true); // 윈도우 컨펌창 대신 커스텀 모달 레이어를 활성화
+      return;
     }
-    
+    executeActualSignOut();
+  };
+
+  const executeActualSignOut = async () => {
     await signOut(auth); 
     router.push('/'); 
   };
@@ -190,8 +215,29 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans antialiased flex flex-col select-none overflow-x-hidden">
+    <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans antialiased flex flex-col select-none overflow-x-hidden relative">
       <div className="fixed inset-0 z-[0] pointer-events-none opacity-20" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+      {/* 💡 [1단계] 게스트 전용 정식 계정 연동 인-UI 대시보드 배너 컴포넌트 */}
+      {user?.isAnonymous && (
+        <div className="w-full bg-gradient-to-r from-purple-950/40 to-fuchsia-950/20 border-b border-purple-500/20 p-4 relative z-50">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="space-y-0.5 text-center sm:text-left">
+              <p className="text-xs font-mono font-black text-purple-400 tracking-wider uppercase flex items-center justify-center sm:justify-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping" />
+                GUEST ACCOUNT PROTECTION ACTIVE
+              </p>
+              <p className="text-xs text-zinc-400">지금 구글 계정과 연동하시면 로그아웃해도 현재 레벨, XP, 기록 보드가 안전하게 정식 영구 저장됩니다.</p>
+            </div>
+            <button 
+              onClick={handleLinkAccount}
+              className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-xs font-black tracking-widest uppercase rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
+            >
+              구글 계정 연동하기
+            </button>
+          </div>
+        </div>
+      )}
 
       <nav className="sticky top-0 z-50 w-full bg-[#050505]/80 backdrop-blur-xl border-b border-zinc-900/60">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 h-14 flex items-center justify-between">
@@ -228,8 +274,53 @@ export default function ProfilePage() {
           {activeTab === 'title' && <TitleTab t={t} titlesList={TITLES_LIST} unlockedTitles={unlockedTitles} currentTitleId={currentTitleId} handleEquipToggle={handleEquipToggle} />}
           {activeTab === 'friends' && <FriendsPanel lang={lang} currentUser={user} />}
         </div>
-
       </div>
+
+      {/* 💡 [2단계] 팝업창 완전 파괴! 브라우저 팝업 대신 화면 전체를 덮는 하이엔드 인-UI 모달 레이어 기믹 */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#0a0a0d] border border-purple-500/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_0_50px_rgba(158,56,255,0.2)] animate-in zoom-in-95 duration-300 text-center">
+            
+            <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto animate-pulse">
+              <svg width="22" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-white uppercase tracking-wide">데이터 영구 삭제 경고</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                현재 게스트 계정입니다. 지금 계정 연동 없이 로그아웃하시면 공들여 쌓아온 <span className="text-purple-400 font-bold">모든 전적, 레벨, 누적 경험치</span>가 시스템 DB에서 즉시 완전 삭제되며 영구 복구가 불가능합니다.
+              </p>
+            </div>
+
+            {/* 실시간 피드백 창 레이아웃 연동 */}
+            {linkError && <p className="text-[11px] font-mono text-red-400 bg-red-500/5 p-2.5 rounded-lg border border-red-500/10">{linkError}</p>}
+            {linkSuccess && <p className="text-[11px] font-mono text-emerald-400 bg-emerald-500/5 p-2.5 rounded-lg border border-emerald-500/10 animate-bounce">🎉 계정 연동 성공! 회원 승격 정산 중...</p>}
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button 
+                onClick={handleLinkAccount}
+                className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-xs font-black tracking-widest uppercase rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all"
+              >
+                🚀 구글 계정 연동하고 기록 지키기
+              </button>
+              <button 
+                onClick={executeActualSignOut}
+                className="w-full py-3.5 bg-zinc-950 border border-zinc-900 hover:bg-zinc-900 text-zinc-500 hover:text-red-400 text-xs font-bold tracking-widest uppercase rounded-xl transition-all"
+              >
+                그냥 로그아웃 (기록 폭파)
+              </button>
+              <button 
+                onClick={() => { setShowLinkModal(false); setByPassError(''); }}
+                className="w-full py-2 text-zinc-600 hover:text-zinc-400 text-[10px] font-mono font-bold tracking-widest uppercase transition-all"
+              >
+                취소하고 플레이로 돌아가기
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
