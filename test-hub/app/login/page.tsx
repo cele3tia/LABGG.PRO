@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MagicRings from '../components/MagicRings'; 
 import { auth, googleProvider } from '../lib/firebase';
-import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
+// 💡 signInAnonymously(익명/게스트 로그인) 추가 임포트
+import { signInWithPopup, signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 /* ==========================================
    [END: IMPORTS_AND_TYPES]
    ========================================== */
@@ -22,7 +23,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isMounted, setIsMounted] = useState(false); // 🎬 등장 애니메이션용 트리거
+  const [isMounted, setIsMounted] = useState(false); 
   /* ==========================================
      [END: STATE_AND_ROUTER]
      ========================================== */
@@ -35,7 +36,6 @@ export default function LoginPage() {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
     if (savedLang) setLang(savedLang);
 
-    // 🎬 페이지 접속 직후 카드가 아래에서 위로 스르륵 올라오도록 트리거
     const timer = setTimeout(() => setIsMounted(true), 50);
     return () => clearTimeout(timer);
   }, []);
@@ -58,6 +58,7 @@ export default function LoginPage() {
       signInBtn: '접속하기',
       or: '또는',
       googleSignIn: 'Google 계정으로 계속하기',
+      guestSignIn: '게스트 모드로 시작하기 (경쟁전 불가)', // 💡 게스트 문구 추가
       noAccount: '아직 계정이 없으신가요?',
       signUp: '회원가입',
       backToHome: '← 메인 대시보드로 돌아가기'
@@ -72,6 +73,7 @@ export default function LoginPage() {
       signInBtn: 'Sign In',
       or: 'OR',
       googleSignIn: 'Continue with Google',
+      guestSignIn: 'Continue as Guest (No Ranked)', // 💡 게스트 문구 추가
       noAccount: "Don't have an account?",
       signUp: 'Sign Up',
       backToHome: '← Back to Dashboard'
@@ -105,6 +107,17 @@ export default function LoginPage() {
       setError(err.message);
     }
   };
+
+  // 💡 게스트 로그인 핸들러 기능 탑재
+  const handleGuestSignIn = async () => {
+    setError('');
+    try {
+      await signInAnonymously(auth);
+      router.push('/');
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
   /* ==========================================
      [END: AUTH_HANDLERS]
      ========================================== */
@@ -112,53 +125,28 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen bg-[#000000] text-zinc-100 font-sans antialiased flex flex-col justify-between items-center overflow-hidden tracking-tight">
       
-      {/* 🔮 [START: BACKGROUND_RINGS] - 영롱한 보라색 매직링 배경 이식 🔮 */}
+      {/* 🔮 BACKGROUND_RINGS */}
       <div className="fixed inset-0 z-[0] pointer-events-none opacity-70">
-        <MagicRings
-          color="#d9b2ff"
-          colorTwo="#9e38ff"
-          ringCount={5}
-          speed={0.8}
-          attenuation={11}
-          lineThickness={5}
-          baseRadius={0.38}
-          radiusStep={0.09}
-          scaleRate={0.07}
-          opacity={1}
-          blur={6}
-          noiseAmount={0.05}
-          rotation={15}
-          ringGap={1.4}
-          clickBurst={false}
-        />
+        <MagicRings color="#d9b2ff" colorTwo="#9e38ff" ringCount={5} speed={0.8} attenuation={11} lineThickness={5} baseRadius={0.38} radiusStep={0.09} scaleRate={0.07} opacity={1} blur={6} noiseAmount={0.05} rotation={15} ringGap={1.4} clickBurst={false} />
       </div>
-      {/* 🔮 [END: BACKGROUND_RINGS] 🔮 */}
 
-
-      {/* 📐 [START: GRID_LINES] - 테크니컬 디지털 그리드 이식 📐 */}
+      {/* 📐 GRID_LINES */}
       <div className="absolute inset-0 z-[1] pointer-events-none select-none opacity-30" 
            style={{ backgroundImage: 'linear-gradient(to right, rgba(39,39,42,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(39,39,42,0.2) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      {/* 📐 [END: GRID_LINES] 📐 */}
 
-
-      {/* ↩️ [START: TOP_BACK_BUTTON] ↩️ */}
+      {/* ↩️ TOP_BACK_BUTTON */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6">
         <Link href="/" className="text-xs font-mono font-black text-zinc-500 hover:text-white transition-colors tracking-widest uppercase">
           {t.backToHome}
         </Link>
       </header>
-      {/* ↩️ [END: TOP_BACK_BUTTON] ↩️ */}
 
-
-      {/* 💳 [START: MAIN_LOGIN_CARD_CONTAINER] 💳 */}
+      {/* 💳 MAIN_LOGIN_CARD_CONTAINER */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center w-full px-6 pb-24">
-        {/* 🎬 cubic-bezier 탄성 무브먼트 스케일 애니메이션 결합 */}
         <div className={`w-full max-w-md transition-all duration-1000 transform ease-[cubic-bezier(0.2,1,0.3,1)] ${isMounted ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-12 scale-95'}`}>
           
-          {/* 글래스모피즘 외곽 링 테두리 마감 */}
           <div className="relative p-[1px] rounded-3xl bg-zinc-900 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-zinc-800/50 backdrop-blur-xl">
             
-            {/* 로그인 카드 내부 본체 */}
             <div className="bg-[#070709]/90 rounded-[23px] p-8 sm:p-10 space-y-6">
               
               <div className="text-center space-y-2">
@@ -172,7 +160,7 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* 📥 [START: EMAIL_FORM_UI] - 인풋 폼 보라 네온 포커스 이식 📥 */}
+              {/* 📥 EMAIL_FORM_UI */}
               <form onSubmit={handleEmailSignIn} className="space-y-5">
                 <div className="space-y-1.5">
                   <label className="block font-mono text-[10px] font-bold text-zinc-500 tracking-wider uppercase pl-1">{t.emailLabel}</label>
@@ -197,24 +185,21 @@ export default function LoginPage() {
                   {t.signInBtn}
                 </button>
               </form>
-              {/* 📥 [END: EMAIL_FORM_UI] 📥 */}
 
               <div className="relative my-8 text-center">
                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-900" /></div>
                 <span className="relative bg-[#070709] px-3 font-mono text-[9px] font-bold text-zinc-600 tracking-widest">{t.or}</span>
               </div>
 
-              {/* 🔘 [START: GOOGLE_SOCIAL_BUTTON] - 호버 시 무지개 네온 발광 효과 이식 🔘 */}
-              <div className="space-y-2.5">
+              {/* 🔘 소셜 / 게스트 로그인 버튼 그룹 */}
+              <div className="space-y-3">
+                {/* 구글 로그인 */}
                 <button 
                   type="button"
                   onClick={handleGoogleSignIn}
                   className="group relative w-full p-[1px] rounded-xl overflow-hidden bg-zinc-900 transition-all duration-300 hover:scale-[1.01]"
                 >
-                  {/* 뒤에서 숨쉬듯 터지는 오로라 네온 효과 */}
                   <div className="absolute inset-0 z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-[#ff007f] via-[#9e38ff] to-[#42fcff] animate-pulse" />
-                  
-                  {/* 내부 실제 버튼 몸체 */}
                   <div className="relative z-10 w-full flex items-center justify-center gap-3 bg-zinc-950 hover:bg-zinc-950/80 rounded-[11px] py-3 text-xs font-bold text-zinc-300 group-hover:text-white transition-all">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -225,8 +210,20 @@ export default function LoginPage() {
                     {t.googleSignIn}
                   </div>
                 </button>
+
+                {/* 💡 게스트 로그인 버튼 (고스트 브레이크 테크니컬 디자인) */}
+                <button
+                  type="button"
+                  onClick={handleGuestSignIn}
+                  className="w-full bg-zinc-950 border border-zinc-800/80 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs font-bold py-3 rounded-xl transition-all transform active:scale-[0.99] flex items-center justify-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  {t.guestSignIn}
+                </button>
               </div>
-              {/* 🔘 [END: GOOGLE_SOCIAL_BUTTON] 🔘 */}
 
               <div className="mt-8 text-center text-xs text-zinc-600">
                 {t.noAccount}{' '}
@@ -239,9 +236,7 @@ export default function LoginPage() {
 
         </div>
       </main>
-      {/* 💳 [END: MAIN_LOGIN_CARD_CONTAINER] 💳 */}
 
-      {/* 하단 마감 패딩용 여백 */}
       <div className="w-full py-4 relative z-10" />
     </div>
   );

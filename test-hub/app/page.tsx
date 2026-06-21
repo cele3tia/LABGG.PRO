@@ -3,16 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-// 💡 공용 컴포넌트 임포트
+// 공용 컴포넌트 임포트
 import MagicRings from './components/MagicRings'; 
 import Leaderboard from './components/Leaderboard';
 import BorderGlow from './components/BorderGlow';
 
-// 💡 main/ 폴더로 분리한 부품들 불러오기
+// main/ 폴더로 분리한 부품들 불러오기
 import HomeNav from './main/HomeNav'; 
 import { TRANSLATIONS, themeStyles as s, getLevelBadgeColor } from './main/homeData'; 
 
-// 💡 파이어베이스 임포트
+// 파이어베이스 임포트
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -159,7 +159,19 @@ export default function LandingPage() {
                   {MULTI_SUITE.map((mode) => (
                     <div key={mode.id} className="min-w-full px-1 py-1.5 flex flex-col">
                       <BorderGlow backgroundColor="#0c0c0e" glowColor="277 100 65" colors={['#9e38ff', '#ff007f', '#42fcff']} borderRadius={22} className="flex-1 flex flex-col group/glowcard">
-                        <Link href={mode.path} className="relative p-7 sm:p-9 flex-1 flex flex-col justify-between transition-transform duration-300 group-hover/glowcard:scale-[1.01]">
+                        {/* 💡 onClick을 심어서 경쟁전 시도하는 익명 게스트 차단 구현 */}
+                        <Link 
+                          href={mode.path} 
+                          onClick={(e) => {
+                            if (mode.id === 'ranked' && auth.currentUser?.isAnonymous) {
+                              e.preventDefault(); // 페이지 이동을 전면 정지
+                              alert(lang === 'ko' 
+                                ? '🔒 게스트 모드에서는 경쟁전에 참여할 수 없습니다. 로그인해 주세요!' 
+                                : '🔒 Guest accounts cannot play Ranked Match. Please Sign In!');
+                            }
+                          }}
+                          className="relative p-7 sm:p-9 flex-1 flex flex-col justify-between transition-transform duration-300 group-hover/glowcard:scale-[1.01]"
+                        >
                           <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.85] mix-blend-normal" style={{ backgroundImage: `radial-gradient(${mode.dotColor} 1px, transparent 1px)`, backgroundSize: '14px 14px' }} />
                           <div className="space-y-2 pt-1 relative z-10">
                             <div className="flex justify-between items-center">
@@ -212,9 +224,8 @@ export default function LandingPage() {
                             <div className="flex justify-between items-center">
                               <div className="flex items-center gap-2">
                                 <span className={`font-mono text-[10px] font-black tracking-widest uppercase ${test.activeColor}`}>{test.label}</span>
-                                {/* 💡 하이엔드 하이퍼 강조 NEW 배지 탑재 (그라데이션 + 펄싱 도트 + 글로우 기능 통합) */}
                                 {test.isNew && (
-                                  <span className="text-[9px] font-sans font-black px-2 py-0.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded shadow-[0_0_15px_rgba(168,85,247,0.5)] tracking-wider animate-pulse flex items-center gap-1 uppercase">
+                                  <span className="text-[9px] font-sans font-black px-2 py-0.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white rounded shadow-[0_0_15px_rgba(16,185,127,0.5)] tracking-wider animate-pulse flex items-center gap-1 uppercase">
                                     <span className="w-1 h-1 rounded-full bg-white animate-ping" />
                                     NEW MODE
                                   </span>
