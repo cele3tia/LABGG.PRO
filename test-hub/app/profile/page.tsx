@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-// 💡 구글 프로바이더 및 연동 모듈(linkWithPopup, GoogleAuthProvider) 추가 임포트
+// 구글 프로바이더 및 연동 모듈 임포트
 import { auth, db, googleProvider } from '../lib/firebase';
 import { onAuthStateChanged, updateProfile, signOut, User, linkWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, updateDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'; 
@@ -41,14 +41,14 @@ export default function ProfilePage() {
   const [currentTitleId, setCurrentTitleId] = useState<string>(''); 
   const [isDevFromDb, setIsDevFromDb] = useState<boolean>(false);
   
-  // 수정 및 연동 시스템 모달 컨트롤 상태 추가
+  // 수정 및 연동 시스템 모달 컨트롤 상태
   const [displayName, setDisplayName] = useState<string>('');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
   const [canEditName, setCanEditName] = useState<boolean>(true);
   const [daysLeftToEdit, setDaysLeftToEdit] = useState<number>(0);
 
-  // 💡 팝업창 원천 차단용 인-UI UI 모달 상태
+  // 인-UI UI 모달 상태
   const [showLinkModal, setShowLinkModal] = useState<boolean>(false);
   const [linkError, setError] = useState<string>('');
   const [linkSuccess, setLinkSuccess] = useState<boolean>(false);
@@ -123,7 +123,7 @@ export default function ProfilePage() {
 
   /* ==========================================
      [START: ACTION_HANDLERS]
-     ========================================== */
+     ========================================= */
   const handleSaveProfile = async () => {
     const newName = displayName.trim();
     if (!user || !newName) return;
@@ -148,7 +148,7 @@ export default function ProfilePage() {
     finally { setSaveLoading(false); }
   };
 
-  // 💡 [실시간 계정 연동 코어 마이그레이션 엔진]
+  // 계정 연동 마이그레이션 핸들러
   const handleLinkAccount = async () => {
     if (!auth.currentUser) return;
     setError('');
@@ -170,10 +170,10 @@ export default function ProfilePage() {
     }
   };
 
-  // 💡 [수정] 로그아웃 가로채서 인-UI 수축 모달 레이어 호출
+  // 로그아웃 가로채기 모달 호출
   const handleLogout = async () => { 
     if (user?.isAnonymous) {
-      setShowLinkModal(true); // 윈도우 컨펌창 대신 커스텀 모달 레이어를 활성화
+      setShowLinkModal(true); 
       return;
     }
     executeActualSignOut();
@@ -218,7 +218,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans antialiased flex flex-col select-none overflow-x-hidden relative">
       <div className="fixed inset-0 z-[0] pointer-events-none opacity-20" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-      {/* 💡 [1단계] 게스트 전용 정식 계정 연동 인-UI 대시보드 배너 컴포넌트 */}
+      {/* 게스트용 실시간 계정 연동 인-UI 상단 배너 */}
       {user?.isAnonymous && (
         <div className="w-full bg-gradient-to-r from-purple-950/40 to-fuchsia-950/20 border-b border-purple-500/20 p-4 relative z-50">
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -276,7 +276,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 💡 [2단계] 팝업창 완전 파괴! 브라우저 팝업 대신 화면 전체를 덮는 하이엔드 인-UI 모달 레이어 기믹 */}
+      {/* 화면 전체 커스텀 인-UI 모달 레이어 패널 */}
       {showLinkModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md bg-[#0a0a0d] border border-purple-500/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_0_50px_rgba(158,56,255,0.2)] animate-in zoom-in-95 duration-300 text-center">
@@ -292,7 +292,6 @@ export default function ProfilePage() {
               </p>
             </div>
 
-            {/* 실시간 피드백 창 레이아웃 연동 */}
             {linkError && <p className="text-[11px] font-mono text-red-400 bg-red-500/5 p-2.5 rounded-lg border border-red-500/10">{linkError}</p>}
             {linkSuccess && <p className="text-[11px] font-mono text-emerald-400 bg-emerald-500/5 p-2.5 rounded-lg border border-emerald-500/10 animate-bounce">🎉 계정 연동 성공! 회원 승격 정산 중...</p>}
 
@@ -309,8 +308,9 @@ export default function ProfilePage() {
               >
                 그냥 로그아웃 (기록 폭파)
               </button>
+              {/* 💡 구문 오류 주석 제거 후 완벽하게 튜닝한 취소 버튼 패널 */}
               <button 
-                onClick={() => { setShowLinkModal(false); setByPassError(''); }}
+                onClick={() => { setShowLinkModal(false); setError(''); }}
                 className="w-full py-2 text-zinc-600 hover:text-zinc-400 text-[10px] font-mono font-bold tracking-widest uppercase transition-all"
               >
                 취소하고 플레이로 돌아가기
