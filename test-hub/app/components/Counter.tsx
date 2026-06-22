@@ -62,7 +62,7 @@ export default function Counter({
   value,
   fontSize = 100,
   padding = 0,
-  places = [10, 1, '.', 0.1, 0.01, 0.001], // 💡 초.밀리초 포맷으로 기본값 세팅
+  places = [10, 1, '.', 0.1, 0.01, 0.001],
   gap = 8,
   borderRadius = 4,
   horizontalPadding = 8,
@@ -70,12 +70,7 @@ export default function Counter({
   fontWeight = 'inherit',
   containerStyle,
   counterStyle,
-  digitStyle,
-  gradientHeight = 16,
-  gradientFrom = 'black',
-  gradientTo = 'transparent',
-  topGradientStyle,
-  bottomGradientStyle
+  digitStyle
 }: any) {
   const height = fontSize + padding;
   const defaultCounterStyle = {
@@ -88,14 +83,7 @@ export default function Counter({
     fontWeight: fontWeight,
     direction: "ltr" as any
   };
-  const defaultTopGradientStyle = {
-    height: gradientHeight,
-    background: `linear-gradient(to bottom, ${gradientFrom}, ${gradientTo})`
-  };
-  const defaultBottomGradientStyle = {
-    height: gradientHeight,
-    background: `linear-gradient(to top, ${gradientFrom}, ${gradientTo})`
-  };
+  
   return (
     <span className="counter-container" style={containerStyle}>
       <span className="counter-counter" style={{ ...defaultCounterStyle, ...counterStyle }}>
@@ -103,10 +91,7 @@ export default function Counter({
           <Digit key={index} place={place} value={value} height={height} digitStyle={digitStyle} />
         ))}
       </span>
-      <span className="gradient-container">
-        <span className="top-gradient" style={topGradientStyle ? topGradientStyle : defaultTopGradientStyle}></span>
-        <span className="bottom-gradient" style={bottomGradientStyle ? bottomGradientStyle : defaultBottomGradientStyle}></span>
-      </span>
+      {/* 💡 악흉의 근원이었던 검은색 그라데이션 가림막(gradient-container) 완전 삭제 완료! */}
     </span>
   );
 }
