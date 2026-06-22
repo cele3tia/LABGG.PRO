@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Image from 'next/image'; // 💡 <img> 태그 에러 방지를 위해 Next.js Image 컴포넌트 임포트
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 
@@ -10,75 +10,84 @@ interface RankItem {
   displayName: string;
   photoURL?: string;
   score: number;
-  timestamp: Date; // 💡 any 타입을 Date 타입으로 정확하게 변경
+  timestamp: Date;
   titleId?: string;
 }
 
-type GameType = 'reaction' | 'cps';
-type PeriodType = 'daily' | 'weekly' | 'all';
+type CategoryType = 'reaction' | 'cps' | 'time';
+
+interface TranslationLang {
+  label: string;
+  reactTab: string;
+  cpsTab: string;
+  timeTab: string;
+  loading: string;
+  noData: string;
+  unitTime: string;
+  unitCps: string;
+  unitReact: string;
+}
 
 const TITLE_MAP: Record<'ko' | 'en', Record<string, string>> = {
   ko: { dev: '개발자', ai: 'AI', godspeed: '전광석화', fast: '빠름', newbie: '뉴비', noTitle: '' },
   en: { dev: 'Developer', ai: 'AI', godspeed: 'Lightning', fast: 'Swift', newbie: 'Newbie', noTitle: '' }
 };
 
-const TRANSLATIONS = {
+const TRANSLATIONS: Record<'ko' | 'en', TranslationLang> = {
   ko: {
-    label: 'GLOBAL LEADERBOARD',
-    reactionTab: 'Reaction',
-    cpsTab: 'CPS Bench',
-    daily: '24H',
-    weekly: '1 WEEK',
-    all: 'ALL-TIME',
+    label: 'HALL OF FAME',
+    reactTab: 'REACT',
+    cpsTab: 'CPS',
+    timeTab: 'TIME',
     loading: '엔진 데이터 로드 중...',
-    noData: '해당 시즌에 등록된 랭킹 기록이 없습니다.',
-    ms: 'ms',
-    cps: 'CPS'
+    noData: '아직 등록된 랭킹 기록이 없습니다.',
+    unitTime: 's',
+    unitCps: ' CPS',
+    unitReact: 'ms'
   },
   en: {
-    label: 'GLOBAL LEADERBOARD',
-    reactionTab: 'Reaction',
-    cpsTab: 'CPS Bench',
-    daily: '24H',
-    weekly: '1 WEEK',
-    all: 'ALL-TIME',
+    label: 'HALL OF FAME',
+    reactTab: 'REACT',
+    cpsTab: 'CPS',
+    timeTab: 'TIME',
     loading: 'LOADING DATA CORE...',
-    noData: 'No rankings registered for this season.',
-    ms: 'ms',
-    cps: 'CPS'
+    noData: 'No rankings registered yet.',
+    unitTime: 's',
+    unitCps: ' CPS',
+    unitReact: 'ms'
   }
 };
 
 export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
-  const [gameTab, setGameTab] = useState<GameType>('reaction');
-  const [periodTab, setPeriodTab] = useState<PeriodType>('daily');
-  
-  const [leaderboardData, setLeaderboardData] = useState<Record<PeriodType, RankItem[]>>({
-    daily: [],
-    weekly: [],
-    all: []
-  });
+  const [category, setCategory] = useState<CategoryType>('reaction');
+  const [leaderboardData, setLeaderboardData] = useState<RankItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   
-  const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const t = TRANSLATIONS[lang];
 
-  const isReaction = gameTab === 'reaction';
-
-  // 💡 탭 전환 시 setLoading(true)을 동기적으로 부르기 위한 전용 핸들러 함수 배치
-  const handleGameTabChange = (tab: GameType) => {
-    setGameTab(tab);
+  const handleCategoryChange = (cat: CategoryType) => {
+    if (category === cat) return;
+    setCategory(cat);
     setLoading(true);
   };
 
   useEffect(() => {
-    // setLoading(true); // 💡 [에러 수정] Cascading Render 유발하는 동기 호출 제거
-    const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const usersRef = collection(db, 'users');
-    const targetField = isReaction ? 'reactionBest' : 'cpsBest';
-    const sortOrder = isReaction ? 'asc' : 'desc';
+    
+    let targetField = '';
+    let sortOrder: 'asc' | 'desc' = 'asc';
+
+    if (category === 'reaction') {
+      targetField = 'reactionBest';
+      sortOrder = 'asc'; 
+    } else if (category === 'cps') {
+      targetField = 'cpsBest';
+      sortOrder = 'desc'; 
+    } else if (category === 'time') {
+      targetField = 'precisionBest';
+      sortOrder = 'asc'; 
+    }
+
     const qAll = query(usersRef, orderBy(targetField, sortOrder), limit(100));
 
     const unsubscribe = onSnapshot(qAll, (snapshot) => {
@@ -86,6 +95,7 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
       snapshot.forEach((doc) => {
         const data = doc.data();
         const score = data[targetField];
+        
         if (score && score > 0) {
           allRanks.push({
             id: doc.id,
@@ -97,158 +107,148 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
           });
         }
       });
-      const dailyRanks = allRanks.filter(item => item.timestamp >= oneDayAgo);
-      const weeklyRanks = allRanks.filter(item => item.timestamp >= oneWeekAgo);
-      setLeaderboardData({ daily: dailyRanks, weekly: weeklyRanks, all: allRanks });
+      
+      setLeaderboardData(allRanks);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [gameTab, isReaction]); // 💡 isReaction 의존성 배열에 추가 완료
+  }, [category]); 
 
-  // 💡 autoplay 제어 함수들을 useCallback으로 감싸 무한 트리거 현상 방지
-  const stopAutoPlay = useCallback(() => {
-    if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
-  }, []);
-
-  const startAutoPlay = useCallback(() => {
-    stopAutoPlay();
-    autoPlayTimerRef.current = setInterval(() => {
-      setPeriodTab((current) => {
-        if (current === 'daily') return 'weekly';
-        if (current === 'weekly') return 'all';
-        return 'daily';
-      });
-    }, 4000); 
-  }, [stopAutoPlay]);
-
-  useEffect(() => {
-    startAutoPlay();
-    return () => stopAutoPlay();
-  }, [startAutoPlay, stopAutoPlay]); // 💡 startAutoPlay, stopAutoPlay 의존성 주입 완료
-
-  const handlePeriodClick = (period: PeriodType) => {
-    setPeriodTab(period);
-    startAutoPlay(); 
+  const formatScore = (score: number) => {
+    if (category === 'reaction') return `${score}${t.unitReact}`;
+    if (category === 'cps') return `${score.toFixed(2)}${t.unitCps}`;
+    if (category === 'time') return `±${score.toFixed(3)}${t.unitTime}`;
+    return score;
   };
 
-  const currentList = leaderboardData[periodTab];
-  const currentUnit = isReaction ? t.ms : t.cps;
+  const getTabStyle = (tab: CategoryType) => {
+    if (category !== tab) return 'text-zinc-600 hover:text-zinc-400 bg-transparent border-transparent';
+    
+    if (tab === 'reaction') return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]';
+    if (tab === 'cps') return 'bg-sky-500/10 border-sky-500/30 text-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.1)]';
+    return 'bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.15)]';
+  };
 
   return (
-    <div className="flex flex-col h-full justify-between select-none" onMouseEnter={stopAutoPlay} onMouseLeave={startAutoPlay}>
+    <div className="flex flex-col w-full select-none">
       
-      <div className="flex flex-col gap-4 border-b border-zinc-900 pb-5 mb-5">
-        <span className="font-mono text-[9px] font-black text-zinc-500 tracking-[0.2em] uppercase block">
-          {`// `}{t.label} {/* 💡 [에러 수정] textnode 내부 슬래시 코드 이스케이프 통과 완료 */}
+      {/* 헤더 */}
+      <div className="flex items-center justify-between mb-4 px-1 shrink-0">
+        <span className="font-mono text-[10px] font-black text-zinc-500 tracking-[0.2em] uppercase">
+          {`// `}{t.label} 
         </span>
-        
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-5 font-sans text-[15px] font-bold">
-            <button onClick={() => handleGameTabChange('reaction')} className={`pb-1 transition-all border-b-2 tracking-tight ${isReaction ? 'text-white border-white' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}>
-              {t.reactionTab}
-            </button>
-            <button onClick={() => handleGameTabChange('cps')} className={`pb-1 transition-all border-b-2 tracking-tight ${!isReaction ? 'text-white border-white' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}>
-              {t.cpsTab}
-            </button>
-          </div>
-
-          <div className="flex bg-zinc-950 border border-zinc-900 p-1 rounded-full font-mono text-[9px] w-full sm:w-auto justify-between sm:justify-start">
-            {(['daily', 'weekly', 'all'] as PeriodType[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => handlePeriodClick(p)}
-                className={`px-3 py-1.5 rounded-full font-black tracking-wider transition-all ${
-                  periodTab === p ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-600 hover:text-zinc-400'
-                }`}
-              >
-                {t[p]}
-              </button>
-            ))}
-          </div>
+        <div className="font-mono text-[9px] font-bold text-zinc-500 tracking-widest border border-zinc-800 bg-zinc-900/30 px-2.5 py-1 rounded-md">
+          ALL-TIME RANKING
         </div>
       </div>
+        
+      {/* 탭 영역 */}
+      <div className="flex bg-black/40 p-1.5 rounded-2xl w-full border border-white/[0.03] mb-5 shadow-inner shrink-0">
+        <button 
+          onClick={() => handleCategoryChange('reaction')} 
+          className={`flex-1 py-2 text-[11px] font-mono font-black tracking-wider uppercase rounded-xl transition-all duration-300 border ${getTabStyle('reaction')}`}
+        >
+          {t.reactTab}
+        </button>
+        <button 
+          onClick={() => handleCategoryChange('cps')} 
+          className={`flex-1 py-2 text-[11px] font-mono font-black tracking-wider uppercase rounded-xl transition-all duration-300 border ${getTabStyle('cps')}`}
+        >
+          {t.cpsTab}
+        </button>
+        <button 
+          onClick={() => handleCategoryChange('time')} 
+          className={`flex-1 py-2 text-[11px] font-mono font-black tracking-wider uppercase rounded-xl transition-all duration-300 border ${getTabStyle('time')}`}
+        >
+          {t.timeTab}
+        </button>
+      </div>
 
-      <div className="flex-1 overflow-y-auto max-h-[560px] lg:max-h-[590px] pr-2 custom-scrollbar space-y-2.5 overflow-x-hidden">
-        {loading ? (
-          <div className="h-40 flex items-center justify-center font-mono text-[10px] tracking-widest uppercase animate-pulse text-zinc-600">
-            {t.loading}
-          </div>
-        ) : currentList.length === 0 ? (
-          <div className="h-40 flex items-center justify-center text-xs text-zinc-500 font-medium py-10">
-            {t.noData}
-          </div>
-        ) : (
-          currentList.map((item, index) => {
+      {/* 리스트 및 상태 화면 영역 */}
+      {loading ? (
+        <div className="h-[494px] flex items-center justify-center font-mono text-[10px] tracking-widest uppercase animate-pulse text-zinc-600">
+          {t.loading}
+        </div>
+      ) : leaderboardData.length === 0 ? (
+        <div className="h-[494px] flex items-center justify-center text-xs text-zinc-600 font-medium font-mono uppercase tracking-widest">
+          {t.noData}
+        </div>
+      ) : (
+        <div className="overflow-y-auto max-h-[494px] pr-1 custom-scrollbar flex flex-col gap-2.5">
+          {leaderboardData.map((item, index) => {
             const rank = index + 1;
             const rankStr = String(rank).padStart(2, '0');
             const displayTitle = item.titleId && TITLE_MAP[lang][item.titleId] ? TITLE_MAP[lang][item.titleId] : null;
             
             let topSkin = {
-              text: 'text-zinc-500',
-              bg: 'bg-transparent border-transparent hover:bg-zinc-900/30',
-              scoreGlow: 'text-zinc-300',
-              titleColor: 'text-zinc-600'
+              text: 'text-zinc-600 font-bold',
+              bg: 'bg-zinc-900/30 border border-zinc-800/40 hover:bg-zinc-900/60 hover:border-zinc-700/50',
+              scoreGlow: 'text-zinc-400 font-bold',
+              titleColor: 'text-zinc-600 border-zinc-800/50 bg-zinc-900/30',
+              imgBorder: 'border-zinc-800'
             };
 
             if (rank === 1) {
               topSkin = {
-                text: 'text-amber-500 font-black',
-                bg: 'bg-amber-500/5 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.03)]',
-                scoreGlow: 'text-amber-500 font-black',
-                titleColor: 'text-amber-500/80 border-amber-500/30 bg-amber-500/10'
+                text: 'text-[#f59e0b] font-black',
+                bg: 'bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.03)]',
+                scoreGlow: 'text-[#f59e0b] font-black drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]',
+                titleColor: 'text-[#f59e0b]/90 border-[#f59e0b]/30 bg-[#f59e0b]/10',
+                imgBorder: 'border-[#f59e0b]/40 shadow-[0_0_10px_rgba(245,158,11,0.15)]'
               };
             } else if (rank === 2) {
               topSkin = {
                 text: 'text-zinc-400 font-black',
-                bg: 'bg-zinc-500/10 border border-zinc-700/50',
-                scoreGlow: 'text-zinc-200 font-bold',
-                titleColor: 'text-zinc-400 border-zinc-600 bg-zinc-700/30'
+                bg: 'bg-gradient-to-r from-zinc-500/5 to-transparent border border-zinc-700/20',
+                scoreGlow: 'text-zinc-200 font-black drop-shadow-[0_0_5px_rgba(228,228,231,0.2)]',
+                titleColor: 'text-zinc-300 border-zinc-600/50 bg-zinc-700/20',
+                imgBorder: 'border-zinc-600/40'
               };
             } else if (rank === 3) {
               topSkin = {
                 text: 'text-orange-500 font-black',
-                bg: 'bg-orange-500/5 border border-orange-500/20',
-                scoreGlow: 'text-orange-500 font-bold',
-                titleColor: 'text-orange-500/80 border-orange-500/30 bg-orange-500/10'
+                bg: 'bg-gradient-to-r from-orange-500/5 to-transparent border border-orange-500/15',
+                scoreGlow: 'text-orange-500 font-black drop-shadow-[0_0_5px_rgba(249,115,22,0.2)]',
+                titleColor: 'text-orange-500/80 border-orange-500/30 bg-orange-500/10',
+                imgBorder: 'border-orange-500/40'
               };
             }
 
             return (
               <div
                 key={item.id}
-                className={`flex items-center justify-between p-3.5 rounded-xl transition-all duration-300 ${topSkin.bg} ${rank > 3 ? 'border-zinc-900 border' : ''}`}
+                className={`flex items-center justify-between p-3.5 rounded-2xl transition-all duration-200 border shrink-0 ${topSkin.bg}`}
               >
                 <div className="flex items-center gap-4">
-                  <span className={`font-mono text-[11px] text-center w-6 tracking-wider ${rank <= 3 ? topSkin.text : 'text-zinc-600 font-bold'}`}>
+                  <span className={`font-mono text-[12px] text-center w-6 tracking-wider ${topSkin.text}`}>
                     {rankStr}
                   </span>
                   
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex items-center gap-3">
                     {item.photoURL ? (
-                      /* 💡 [에러 수정] Next.js Image 컴포넌트 최적화 구조 변경 및 unoptimized 처리 */
                       <Image 
                         src={item.photoURL} 
                         alt={item.displayName} 
-                        width={32}
+                        width={32} 
                         height={32}
                         unoptimized
-                        className={`rounded-md border object-cover ${rank === 1 ? 'border-amber-400/50 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'border-zinc-800'}`}
+                        className={`rounded-xl object-cover border w-8 h-8 shrink-0 ${topSkin.imgBorder}`}
                       />
                     ) : (
-                      <div className={`w-8 h-8 rounded-md font-mono text-[11px] font-black flex items-center justify-center uppercase ${rank === 1 ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'bg-zinc-900 border border-zinc-800 text-zinc-500'}`}>
+                      <div className={`w-8 h-8 rounded-lg font-mono text-[10px] font-black flex items-center justify-center uppercase shrink-0 ${rank === 1 ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : 'bg-zinc-900/30 border border-zinc-800/20 text-zinc-700'}`}>
                         {item.displayName[0]}
                       </div>
                     )}
 
                     <div className="flex flex-col justify-center">
-                      <span className={`text-[13px] tracking-tight ${rank <= 3 ? 'font-bold text-white' : 'font-semibold text-zinc-300'}`}>
+                      <span className={`text-[13px] tracking-tight ${rank <= 3 ? 'font-black text-white' : 'font-bold text-zinc-300'}`}>
                         {item.displayName}
                       </span>
                       
                       {displayTitle && (
                         <div className="mt-0.5">
-                          <span className={`inline-block px-1.5 py-[1px] text-[9px] font-mono font-black uppercase tracking-widest rounded border ${rank <= 3 ? topSkin.titleColor : 'text-zinc-500 border-zinc-800 bg-zinc-900/50'}`}>
+                          <span className={`inline-block px-1.5 py-[2px] text-[8px] font-mono font-black uppercase tracking-widest rounded border ${topSkin.titleColor}`}>
                             {displayTitle}
                           </span>
                         </div>
@@ -258,22 +258,41 @@ export default function Leaderboard({ lang }: { lang: 'ko' | 'en' }) {
                 </div>
 
                 <div className="text-right font-mono flex items-baseline gap-1 pr-2">
-                  <span className={`text-[15px] tabular-nums ${rank <= 3 ? topSkin.scoreGlow : 'text-zinc-400 font-bold'}`}>
-                    {item.score}
+                  <span className={`text-[14px] tabular-nums tracking-tighter ${topSkin.scoreGlow}`}>
+                    {formatScore(item.score)}
                   </span>
-                  <span className={`text-[9px] font-bold uppercase pb-[1px] ${rank === 1 ? 'text-amber-500/70' : 'text-zinc-600'}`}>{currentUnit}</span>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
-
+          })}
+        </div>
+      )}
+      
+      {/* 💡 픽스: 흰색 테두리 흔적도 없이 박멸하는 크로스 브라우저 다크 스크롤바 정밀 스타일셋 */}
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        /* 파이어폭스 전용 다크 스크롤 패치 */
+        .custom-scrollbar {
+          scrollbar-width: thin !important;
+          scrollbar-color: #27272a transparent !important;
+        }
+
+        /* 크롬, 사파리, 최신 엣지용 럭셔리 스크롤 패치 */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px !important;
+          height: 5px !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #1f1f23 !important;
+          border-radius: 20px !important;
+          border: none !important;
+          transition: background-color 0.2s ease;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: #3f3f46 !important;
+        }
       `}</style>
     </div>
   );

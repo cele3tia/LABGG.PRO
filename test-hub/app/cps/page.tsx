@@ -79,7 +79,6 @@ export default function CpsTestPage() {
   const [timeLeft, setTimeLeft] = useState<number>(5);
   const [clickCount, setClickCount] = useState<number>(0);
 
-  // 💡 광클 스킵 방지용 쿨타임 상태 (결과창이 뜨자마자 눌리는 걸 방지)
   const [canRestart, setCanRestart] = useState<boolean>(false);
 
   const timerRef = useRef<number | null>(null);
@@ -188,7 +187,7 @@ export default function CpsTestPage() {
     lastClickStampRef.current = performance.now();
     lastIntervalRef.current = 0;
     exactIntervalCountRef.current = 0;
-    setCanRestart(false); // 테스트 시작 시 리셋 버튼 잠금
+    setCanRestart(false);
     timerRef.current = requestAnimationFrame(updateTimer);
   };
 
@@ -217,7 +216,6 @@ export default function CpsTestPage() {
     const now = performance.now();
 
     if (gameState === 'foul') {
-      // 💡 파울 상태일 때도 쿨타임(1.2초) 적용
       if (!canRestart) return; 
       resetEntireTest();
       return;
@@ -266,13 +264,11 @@ export default function CpsTestPage() {
       const finalCps = parseFloat((clickCount / totalTime).toFixed(2));
       saveFinalCpsAndProcessXp(finalCps);
 
-      // 💡 결과창이 뜨면 1.2초 동안 버튼을 클릭 불가능하게 잠금
       setCanRestart(false);
       const lockTimer = setTimeout(() => setCanRestart(true), 1200);
       return () => clearTimeout(lockTimer);
       
     } else if (gameState === 'foul') {
-      // 💡 매크로 경고창이 떠도 1.2초 동안은 실수로 스킵 못하게 잠금
       setCanRestart(false);
       const lockTimer = setTimeout(() => setCanRestart(true), 1200);
       return () => clearTimeout(lockTimer);
@@ -420,14 +416,14 @@ export default function CpsTestPage() {
           )}
 
           {gameState === 'foul' && (
-            <div className="space-y-4 relative z-10 animate-[fadeIn_0.2s_ease-out]">
+            <div className="space-y-4 w-full max-w-md relative z-10 animate-[fadeIn_0.2s_ease-out]">
               <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-2 animate-pulse">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-red-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
               </div>
               <p className="text-xl font-black text-red-500 tracking-widest uppercase">TEST TERMINATED</p>
               <p className="text-[11px] text-red-400/80 font-bold max-w-[260px] mx-auto leading-relaxed">{t.macroAlert}</p>
               
-              {/* 💡 파울 쿨타임 버튼 연동 */}
+              {/* 💡 쿨타임 디자인 업그레이드 (빨간색) */}
               <button 
                 onClick={(e) => { 
                   e.stopPropagation(); 
@@ -435,8 +431,10 @@ export default function CpsTestPage() {
                   resetEntireTest(); 
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`mt-6 px-6 py-2.5 bg-red-950 border border-red-900 rounded-xl text-xs font-bold transition-all ${
-                  canRestart ? 'text-red-300 hover:bg-red-900 hover:text-white cursor-pointer active:scale-95' : 'text-red-900 opacity-50 cursor-not-allowed'
+                className={`w-full py-5 font-mono text-sm font-black uppercase tracking-[0.25em] rounded-xl transition-all mt-6 ${
+                  canRestart 
+                    ? 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:bg-red-400 active:scale-95 cursor-pointer' 
+                    : 'bg-red-950 border border-red-900 text-red-900 opacity-50 cursor-not-allowed'
                 }`}
               >
                 {t.restartAll}
@@ -469,7 +467,7 @@ export default function CpsTestPage() {
                 {xpNotice && <p className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 inline-block">{xpNotice}</p>}
               </div>
 
-              {/* 💡 광클 스킵 방지 쿨타임 버튼 연동 */}
+              {/* 💡 쿨타임 디자인 업그레이드 (흰색/블랙) */}
               <button 
                 onClick={(e) => { 
                   e.stopPropagation(); 
@@ -477,8 +475,10 @@ export default function CpsTestPage() {
                   resetEntireTest(); 
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
-                className={`mt-1 px-5 py-2.5 border rounded-xl text-xs font-bold transition-all w-full ${
-                  canRestart ? 'bg-zinc-900 border-zinc-800 text-zinc-200 hover:bg-white hover:text-black cursor-pointer active:scale-95' : 'bg-zinc-900/50 border-zinc-800/50 text-zinc-600 opacity-50 cursor-not-allowed'
+                className={`w-full py-5 font-mono text-sm font-black uppercase tracking-[0.25em] rounded-xl transition-all mt-2 ${
+                  canRestart 
+                    ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.15)] hover:bg-zinc-200 active:scale-95 cursor-pointer' 
+                    : 'bg-zinc-900 border border-zinc-800 text-zinc-600 opacity-50 cursor-not-allowed'
                 }`}
               >
                 {t.restartAll}
