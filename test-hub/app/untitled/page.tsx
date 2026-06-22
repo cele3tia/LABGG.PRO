@@ -35,7 +35,7 @@ const TRANSLATIONS = {
     targetTime: '목표 시간',
     yourTime: '나의 기록',
     targetHidden: '// 목표 시간 은폐됨',
-    result: '최종 분석 결과', // 💡 리포트 -> 결과로 수정
+    result: '최종 분석 결과', 
     errorGap: '오차 범위',
     avgErrorGap: '평균 오차 범위',
     rankTitle: '최종 등급',
@@ -46,8 +46,8 @@ const TRANSLATIONS = {
     levelUp: 'LEVEL UP! 🎉',
     loginAlert: '💡 로그인 후 완료하시면 글로벌 리더보드에 등록됩니다.',
     restartAll: '처음부터 다시하기',
-    nextPhase: '다음 페이지 진행', // 💡 페이즈 -> 페이지로 수정
-    showFinalResult: '최종 결과 확인', // 💡 리포트 -> 결과로 수정
+    nextPhase: '다음 페이지 진행', 
+    showFinalResult: '최종 결과 확인', 
     holdToStart: '버튼을 꾹 누르세요',
     releaseNow: '지금 손을 떼세요!',
     focusSense: '감각에 집중하세요',
@@ -292,7 +292,7 @@ export default function PrecisionTimingTestPage() {
     const base = "fixed left-1/2 -translate-x-1/2 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] border shadow-2xl flex flex-col items-center antialiased";
     
     if (gameState === 'waiting') {
-      return `${base} top-[calc(100vh-210px)] w-full max-w-sm h-24 rounded-2xl bg-zinc-950 border-zinc-800/80 text-zinc-300 hover:bg-zinc-900/60 cursor-pointer z-30 py-8 justify-center mb-8 sm:mb-12`;
+      return `${base} top-[calc(100vh-150px)] w-full max-w-sm h-24 rounded-2xl bg-zinc-950 border-zinc-800/80 text-zinc-300 hover:bg-zinc-900/60 cursor-pointer z-30 py-8 justify-center mb-8 sm:mb-12`;
     }
     if (gameState === 'clicking') {
       return `${base} top-0 w-screen max-w-full h-screen rounded-none bg-[#140727]/40 border-purple-500/40 text-purple-300 shadow-[inset_0_0_100px_rgba(158,56,255,0.35)] pb-32 justify-end z-30`;
@@ -306,7 +306,10 @@ export default function PrecisionTimingTestPage() {
   const isClickableState = gameState === 'waiting' || gameState === 'clicking';
 
   return (
-    <div className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col p-6 sm:p-10 select-none relative overflow-hidden">
+    <div 
+      className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col p-6 sm:p-10 select-none relative overflow-hidden"
+      onContextMenu={(e) => e.preventDefault()} // 💡 전체 메인 레이아웃 롱프레스 팝업 1차 안전장치 차단
+    >
       
       {/* 백그라운드 매직링 */}
       <div className={`fixed inset-0 z-0 pointer-events-none transition-all duration-700 flex items-center justify-center ${gameState === 'clicking' ? 'opacity-30 scale-100' : 'opacity-0 scale-110'}`}>
@@ -462,7 +465,9 @@ export default function PrecisionTimingTestPage() {
                 onPointerDown={isClickableState ? handlePointerDown : undefined}
                 onPointerUp={gameState === 'clicking' ? handlePointerUp : undefined}
                 onPointerLeave={gameState === 'clicking' ? handlePointerUp : undefined}
+                onContextMenu={(e) => e.preventDefault()} // 💡 모바일 롱프레스시 기본 팝업 메뉴가 뜨는 이벤트 완전 차단
                 className={getMorphPanelClasses()}
+                style={{ WebkitTouchCallout: 'none' }} // 💡 iOS Safari에서 길게 누를 때 생기는 팝업 컷
               >
                 {/* A. 대기 상태 내부 텍스트 */}
                 {gameState === 'waiting' && (
