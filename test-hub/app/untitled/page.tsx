@@ -54,7 +54,8 @@ const TRANSLATIONS = {
     sec: '초',
     round: 'PHASE',
     target: 'TARGET', 
-    record: 'ACTUAL'  
+    record: 'ACTUAL',
+    lowDetail: '낮은 디테일'
   },
   en: {
     back: '← HOME',
@@ -88,7 +89,8 @@ const TRANSLATIONS = {
     sec: 's',
     round: 'PHASE',
     target: 'TARGET', 
-    record: 'ACTUAL'  
+    record: 'ACTUAL',
+    lowDetail: 'Low Detail'
   }
 };
 
@@ -110,12 +112,17 @@ export default function PrecisionTimingTestPage() {
   const [currentDiff, setCurrentDiff] = useState<number>(0); 
   const [avgDiff, setAvgDiff] = useState<number>(0);
 
+  const [lowDetail, setLowDetail] = useState<boolean>(false);
+
   const startTimeRef = useRef<number>(0);
   const lastActionTimeRef = useRef<number>(0);
 
   useEffect(() => {
     const savedLang = localStorage.getItem('site-lang') as 'ko' | 'en';
     if (savedLang) setLang(savedLang);
+
+    const savedLowDetail = localStorage.getItem('low-detail') === 'true';
+    setLowDetail(savedLowDetail);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -131,6 +138,13 @@ export default function PrecisionTimingTestPage() {
     generateNewTarget();
     return () => unsubscribe();
   }, []);
+
+  const toggleLowDetail = () => {
+    setLowDetail(prev => {
+      localStorage.setItem('low-detail', String(!prev));
+      return !prev;
+    });
+  };
 
   const generateNewTarget = () => {
     const randomSec = (Math.random() * 4 + 2).toFixed(3);
@@ -289,16 +303,19 @@ export default function PrecisionTimingTestPage() {
   };
 
   const getMorphPanelClasses = () => {
-    const base = "fixed left-1/2 -translate-x-1/2 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] border shadow-2xl flex flex-col items-center antialiased";
+    const base = "fixed left-1/2 -translate-x-1/2 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] border flex flex-col items-center antialiased";
+    const shadowClass = lowDetail ? "" : "shadow-2xl";
     
     if (gameState === 'waiting') {
-      return `${base} top-[calc(100vh-150px)] w-full max-w-sm h-24 rounded-2xl bg-zinc-950 border-zinc-800/80 text-zinc-300 hover:bg-zinc-900/60 cursor-pointer z-30 py-8 justify-center mb-8 sm:mb-12`;
+      return `${base} ${shadowClass} top-[calc(100vh-280px)] w-full max-w-sm h-24 rounded-2xl bg-zinc-950 border-zinc-800/80 text-zinc-300 hover:bg-zinc-900/60 cursor-pointer z-30 py-8 justify-center mb-8 sm:mb-12`;
     }
     if (gameState === 'clicking') {
-      return `${base} top-0 w-screen max-w-full h-screen rounded-none bg-[#140727]/40 border-purple-500/40 text-purple-300 shadow-[inset_0_0_100px_rgba(158,56,255,0.35)] pb-32 justify-end z-30`;
+      const insetGlow = lowDetail ? "" : "shadow-[inset_0_0_100px_rgba(158,56,255,0.35)]";
+      return `${base} ${shadowClass} ${insetGlow} top-0 w-screen max-w-full h-screen rounded-none bg-[#140727]/40 border-purple-500/40 text-purple-300 pb-32 justify-end z-30`;
     }
     if (gameState === 'round-result') {
-      return `${base} top-[43vh] w-full max-w-sm h-[380px] rounded-3xl bg-[#140727]/95 border-purple-500/40 shadow-[0_0_40px_rgba(158,56,255,0.25),inset_0_0_30px_rgba(158,56,255,0.2)] p-6 justify-center z-50`;
+      const boxGlow = lowDetail ? "" : "shadow-[0_0_40px_rgba(158,56,255,0.25),inset_0_0_30px_rgba(158,56,255,0.2)]";
+      return `${base} ${shadowClass} ${boxGlow} top-[45vh] -translate-y-1/2 w-full max-w-sm h-[380px] rounded-3xl bg-[#140727]/95 border-purple-500/40 p-6 justify-center z-50`;
     }
     return "hidden";
   };
@@ -308,15 +325,17 @@ export default function PrecisionTimingTestPage() {
   return (
     <div 
       className="min-h-screen bg-black text-zinc-100 font-sans antialiased flex flex-col p-6 sm:p-10 select-none relative overflow-hidden"
-      onContextMenu={(e) => e.preventDefault()} // 💡 전체 메인 레이아웃 롱프레스 팝업 1차 안전장치 차단
+      onContextMenu={(e) => e.preventDefault()} 
     >
       
-      {/* 백그라운드 매직링 */}
-      <div className={`fixed inset-0 z-0 pointer-events-none transition-all duration-700 flex items-center justify-center ${gameState === 'clicking' ? 'opacity-30 scale-100' : 'opacity-0 scale-110'}`}>
-        <div className="w-[180vw] h-[180vh] transform -rotate-45 flex items-center justify-center">
-          <MagicRings color="#9e38ff" colorTwo="#7928ca" ringCount={6} speed={gameState === 'clicking' ? 4 : 1} attenuation={12} lineThickness={2} clickBurst={false} followMouse={false} />
+      {/* 🌪 빽그라운드 매직링 (낮은 디테일 모드가 OFF일 때만 렌더링) */}
+      {!lowDetail && (
+        <div className={`fixed inset-0 z-0 pointer-events-none transition-all duration-700 flex items-center justify-center ${gameState === 'clicking' ? 'opacity-30 scale-100' : 'opacity-0 scale-110'}`}>
+          <div className="w-[180vw] h-[180vh] transform -rotate-45 flex items-center justify-center">
+            <MagicRings color="#9e38ff" colorTwo="#7928ca" ringCount={6} speed={gameState === 'clicking' ? 4 : 1} attenuation={12} lineThickness={2} clickBurst={false} followMouse={false} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 상단 네비 바 */}
       <nav className="flex justify-between items-center w-full max-w-5xl mx-auto relative z-40 shrink-0">
@@ -371,8 +390,21 @@ export default function PrecisionTimingTestPage() {
           </div>
         </section>
 
+        {/* 낮은 디테일 버튼 */}
+        <div className="w-full flex justify-end mt-4 relative z-40">
+          <button 
+            onClick={toggleLowDetail}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-2 ${lowDetail ? 'bg-purple-500/20 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(158,56,255,0.2)]' : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
+          >
+            {t.lowDetail}
+            <span className={`px-1.5 py-0.5 rounded text-[10px] ${lowDetail ? 'bg-purple-500 text-white' : 'bg-zinc-800 text-zinc-400'}`}>
+              {lowDetail ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </div>
+
         {/* 인터랙션 레이아웃 무대 */}
-        <section aria-label="Interaction Stage" className="w-full flex-1 relative flex flex-col items-center justify-between pt-10 pb-4 min-h-[400px]">
+        <section aria-label="Interaction Stage" className="w-full flex-1 relative flex flex-col items-center justify-between pt-4 pb-4 min-h-[400px]">
           
           <div className="w-full relative flex items-center justify-center flex-1">
             
@@ -380,7 +412,7 @@ export default function PrecisionTimingTestPage() {
             <div className={`transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] absolute flex flex-col items-center z-40 antialiased
                 ${gameState === 'clicking' || gameState === 'round-result'
                   ? 'opacity-0 scale-50 pointer-events-none'
-                  : 'top-[30%] left-1/2 -translate-x-1/2 -translate-y-1/2 scale-100 opacity-100 origin-center'
+                  : 'top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 scale-100 opacity-100 origin-center'
                 }
                 ${gameState === 'all-done' ? 'hidden' : 'flex'}
               `}
@@ -401,7 +433,7 @@ export default function PrecisionTimingTestPage() {
 
             {/* 📊 최종 종합 결과 리포트 대시보드 */}
             {gameState === 'all-done' && (
-              <article className="w-full max-w-md mx-auto absolute top-[10%] left-1/2 -translate-x-1/2 animate-[fadeIn_0.3s_ease-out] text-center z-40 flex flex-col gap-6 antialiased">
+              <article className="w-full max-w-md mx-auto absolute top-[5%] left-1/2 -translate-x-1/2 animate-[fadeIn_0.3s_ease-out] text-center z-40 flex flex-col gap-6 antialiased">
                 <div>
                   <p className="text-xs font-mono font-bold text-emerald-400 uppercase tracking-widest">{t.result}</p>
                   <p className="text-7xl font-black text-white tracking-tighter mt-1 tabular-nums">
@@ -425,7 +457,7 @@ export default function PrecisionTimingTestPage() {
                   })}
                 </div>
 
-                <div className={`grid grid-cols-2 gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl font-mono text-left ${stats.glow} transition-all duration-500`}>
+                <div className={`grid grid-cols-2 gap-3 p-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl font-mono text-left ${lowDetail ? '' : stats.glow} transition-all duration-500`}>
                   <div className="space-y-0.5">
                     <span className="text-[10px] font-bold text-zinc-500 block uppercase tracking-wider">{t.rankTitle}</span>
                     <span className={`text-sm font-black tracking-tight ${stats.color}`}>{stats.rank}</span>
@@ -441,7 +473,6 @@ export default function PrecisionTimingTestPage() {
                   {xpNotice && <p className="text-xs font-mono font-bold text-emerald-400 uppercase animate-pulse">{xpNotice}</p>}
                 </div>
 
-                {/* 💡 로그인 안 되어 있으면 끝날 때도 로그인 유도 문구 노출 */}
                 {!user && (
                   <p className="text-[10px] font-sans text-zinc-500 font-bold tracking-tight text-center max-w-[280px] mx-auto leading-relaxed mt-2 animate-pulse">
                     {t.loginAlert}
@@ -459,21 +490,29 @@ export default function PrecisionTimingTestPage() {
           </div>
 
           {/* 마스터 모핑 컨트롤 패널 */}
-          <div className="w-full max-w-sm mt-auto mb-8 sm:mb-12 relative h-24 flex items-end justify-center">
+          <div className="w-full max-w-sm mt-auto relative h-24 flex items-end justify-center">
             {gameState !== 'all-done' && (
               <div
                 onPointerDown={isClickableState ? handlePointerDown : undefined}
                 onPointerUp={gameState === 'clicking' ? handlePointerUp : undefined}
                 onPointerLeave={gameState === 'clicking' ? handlePointerUp : undefined}
-                onContextMenu={(e) => e.preventDefault()} // 💡 모바일 롱프레스시 기본 팝업 메뉴가 뜨는 이벤트 완전 차단
+                onContextMenu={(e) => e.preventDefault()} 
                 className={getMorphPanelClasses()}
-                style={{ WebkitTouchCallout: 'none' }} // 💡 iOS Safari에서 길게 누를 때 생기는 팝업 컷
+                style={{ WebkitTouchCallout: 'none' }} 
               >
                 {/* A. 대기 상태 내부 텍스트 */}
                 {gameState === 'waiting' && (
-                  <span className="relative z-10 font-mono text-sm font-black tracking-[0.25em] uppercase text-zinc-300 pointer-events-none">
-                    {t.holdToStart}
-                  </span>
+                  <>
+                    <span className="relative z-10 font-mono text-sm font-black tracking-[0.25em] uppercase text-zinc-300 pointer-events-none">
+                      {t.holdToStart}
+                    </span>
+                    {/* 💡 픽스: 로그인 경고 문구를 홀드 버튼 내부 엉덩이에 완벽하게 부착! */}
+                    {!user && (
+                      <span className="absolute top-[110%] left-1/2 -translate-x-1/2 text-[10px] font-sans text-zinc-500 font-bold tracking-tight text-center w-[280px] leading-relaxed pointer-events-none animate-pulse">
+                        {t.loginAlert}
+                      </span>
+                    )}
+                  </>
                 )}
 
                 {/* B. 누르고 있을 때 내부 텍스트 */}
@@ -513,19 +552,13 @@ export default function PrecisionTimingTestPage() {
 
                     <button
                       onClick={handleNextPhaseOrFinish}
-                      className="w-full py-4 bg-white text-black font-mono text-sm font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+                      className={`w-full py-4 bg-white text-black font-mono text-sm font-black uppercase tracking-[0.2em] rounded-xl hover:bg-zinc-200 transition-all active:scale-95 ${lowDetail ? '' : 'shadow-[0_0_25px_rgba(255,255,255,0.2)]'}`}
                     >
                       {roundHistory.length >= 3 ? t.showFinalResult : t.nextPhase}
                     </button>
                   </div>
                 )}
               </div>
-            )}
-
-            {gameState === 'waiting' && !user && (
-              <p className="text-[10px] font-sans text-zinc-600 font-bold tracking-tight text-center max-w-[280px] mx-auto leading-relaxed absolute -bottom-8 w-full">
-                {t.loginAlert}
-              </p>
             )}
           </div>
 
