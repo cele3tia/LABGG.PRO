@@ -108,17 +108,14 @@ export default function LandingPage() {
   return (
     <div className={`relative min-h-screen ${s.bg} font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden tracking-tight`}>
       
-      {/* 백그라운드 매직 링 */}
       <div className="fixed inset-0 z-[0] pointer-events-none opacity-80">
         <MagicRings color="#d9b2ff" colorTwo="#9e38ff" ringCount={6} speed={1} attenuation={10} lineThickness={6} baseRadius={0.35} radiusStep={0.1} scaleRate={0.1} opacity={1} blur={5} noiseAmount={0.1} rotation={0} ringGap={1.5} fadeIn={0.7} fadeOut={0.5} followMouse={false} mouseInfluence={0.2} hoverScale={1.2} parallax={0.05} clickBurst={true} />
       </div>
 
-      {/* 넷 그리드 배경 */}
       <div className="absolute inset-x-0 bottom-0 top-24 z-[1] pointer-events-none select-none overflow-hidden">
         <div className="absolute inset-0 opacity-100" style={{ backgroundImage: s.gridLine, backgroundSize: '40px 40px' }} />
       </div>
 
-      {/* 상단 내비게이션 바 컴포넌트 */}
       <HomeNav 
         lang={lang} 
         onLangChange={handleLangChange} 
@@ -130,11 +127,10 @@ export default function LandingPage() {
         getLevelBadgeColor={getLevelBadgeColor} 
       />
 
-      {/* 메인 무대 */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-16 pb-32">
+      <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pt-16 pb-32 space-y-12">
         
-        {/* 히어로 타이틀 */}
-        <div className="max-w-4xl mb-14">
+        {/* 1. 히어로 타이틀 */}
+        <div className="max-w-4xl">
           <h1 className="group/title inline-block cursor-default text-5xl sm:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tighter mb-4">
             <span className="transition-colors">{t.title1}</span><br />
             <span className={`block mt-2 transition-colors ${s.title2}`}>{t.title2}</span>
@@ -142,11 +138,48 @@ export default function LandingPage() {
           <p className="max-w-lg font-medium text-sm transition-colors text-zinc-400">{t.desc}</p>
         </div>
 
+        {/* 💡 2. 방치형 게임 입장 배너 (기존 게임창 제거 후 대체) */}
+        <div className="w-full">
+          <Link 
+            href="/idle" 
+            className="group/idle relative block w-full bg-black/40 backdrop-blur-xl border border-purple-500/30 rounded-[24px] p-6 sm:p-8 overflow-hidden shadow-[0_0_20px_rgba(168,85,247,0.1)] transition-all duration-300 hover:border-purple-400 hover:bg-purple-900/10 hover:shadow-[0_0_30px_rgba(168,85,247,0.2)] hover:-translate-y-1"
+          >
+            {/* 호버 시 번쩍이는 도트 배경 */}
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.1] group-hover/idle:opacity-[0.2] transition-opacity duration-300" style={{ backgroundImage: `radial-gradient(rgba(168,85,247,0.8) 1px, transparent 1px)`, backgroundSize: '16px 16px' }} />
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className={`text-[10px] font-mono font-black tracking-[0.2em] uppercase flex items-center gap-2 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-ping"></span>
+                  <span>{"// NEW: IDLE CORE SYSTEM MATRIX"}</span>
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black font-sans tracking-tight text-white">
+                  {lang === 'ko' ? '데이터 마이닝 작업장 입장' : 'ENTER DATA MINING FACILITY'}
+                </h3>
+                <p className="text-sm font-medium text-zinc-400">
+                  {lang === 'ko' ? '방치하고 다이아몬드를 캐세요. 당신의 칭호에 따라 효율이 극대화됩니다.' : 'Mine bytes & diamonds idly. Equip titles to multiply your earnings.'}
+                </p>
+              </div>
+
+              <div className="flex-shrink-0 flex items-center gap-3">
+                <div className="hidden sm:flex flex-col items-end pr-4 border-r border-zinc-800">
+                  <span className="font-mono text-[9px] text-zinc-500 tracking-widest uppercase">Status</span>
+                  <span className="font-mono text-xs font-black text-emerald-400 uppercase tracking-widest">ONLINE</span>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center text-purple-300 group-hover/idle:bg-purple-500 group-hover/idle:text-black transition-all duration-300 group-hover/idle:rotate-45">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* 3. 컨텐츠 메인 스케줄 격자 구역 */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-stretch">
           
           <div className="lg:col-span-7 flex flex-col justify-between gap-10">
             
-            {/* 🕹️ 멀티플레이어 슬라이더 */}
+            {/* 멀티플레이어 슬라이더 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2.5 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
@@ -159,12 +192,11 @@ export default function LandingPage() {
                   {MULTI_SUITE.map((mode) => (
                     <div key={mode.id} className="min-w-full px-1 py-1.5 flex flex-col">
                       <BorderGlow backgroundColor="#0c0c0e" glowColor="277 100 65" colors={['#9e38ff', '#ff007f', '#42fcff']} borderRadius={22} className="flex-1 flex flex-col group/glowcard">
-                        {/* 💡 onClick을 심어서 경쟁전 시도하는 익명 게스트 차단 구현 */}
                         <Link 
                           href={mode.path} 
                           onClick={(e) => {
                             if (mode.id === 'ranked' && auth.currentUser?.isAnonymous) {
-                              e.preventDefault(); // 페이지 이동을 전면 정지
+                              e.preventDefault(); 
                               alert(lang === 'ko' 
                                 ? '🔒 게스트 모드에서는 경쟁전에 참여할 수 없습니다. 로그인해 주세요!' 
                                 : '🔒 Guest accounts cannot play Ranked Match. Please Sign In!');
@@ -206,7 +238,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* 👤 싱글플레이어 슬라이더 */}
+            {/* 싱글플레이어 슬라이더 */}
             <div className="space-y-3 flex-1 flex flex-col justify-end">
               <div className={`text-[9px] font-mono font-black tracking-[0.2em] px-1 uppercase flex items-center gap-2 ${s.sectionTitle}`}>
                 <span className="w-1 h-1 rounded-full bg-zinc-400"></span>
@@ -273,15 +305,15 @@ export default function LandingPage() {
 
           </div>
 
-          {/* 🏆 리더보드 구역 */}
+          {/* 리더보드 구역 */}
           <div className={`lg:col-span-5 border rounded-3xl p-6 sm:p-8 backdrop-blur-md h-full lg:min-h-[690px] ${s.leaderboardBg}`}>
             <Leaderboard lang={lang} />
           </div>
 
         </div>
+
       </main>
 
-      {/* 📋 푸터 구역 */}
       <footer className={`w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4 font-mono text-[9px] font-bold tracking-widest uppercase ${s.footerBorder}`}>
         <div className="flex items-center gap-2">
           <div className="w-1 h-1 rounded-full bg-zinc-500"></div>
