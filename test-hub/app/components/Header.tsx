@@ -7,7 +7,7 @@ import { useLanguage } from "./providers";
 
 export default function Header() {
   const { theme, setTheme } = useTheme();
-  const { lang, toggleLang, t } = useLanguage();
+  const { lang, toggleLang, t, user } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -32,7 +32,7 @@ export default function Header() {
 
       <div className="flex items-center gap-5 sm:gap-6">
         
-        {/* 🚀 현재 언어 상태에 맞춰 KO / EN 표시 수정 */}
+        {/* 언어 변경 버튼 */}
         <button
           onClick={toggleLang}
           className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors cursor-pointer"
@@ -56,10 +56,16 @@ export default function Header() {
           </svg>
         </a>
 
-        {/* 로그인 링크 */}
-        <Link href="/login" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 transition-colors duration-200 hover:text-black dark:hover:text-white">
-          {t.login}
-        </Link>
+        {/* 🚀 로그인 상태에 따라 Login 또는 Profile로 동적 변경 */}
+        {user ? (
+          <Link href="/profile" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 transition-colors duration-200 hover:text-black dark:hover:text-white">
+            {t.profile}
+          </Link>
+        ) : (
+          <Link href="/login" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 transition-colors duration-200 hover:text-black dark:hover:text-white">
+            {t.login}
+          </Link>
+        )}
 
         {/* 테마 변경 버튼 */}
         <button

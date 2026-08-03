@@ -1,12 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useLanguage } from "../components/providers";
+import { auth, googleProvider } from "../lib/firebase";
+import { signInWithPopup } from "firebase/auth";
 
 export default function LoginPage() {
   const { t, lang } = useLanguage();
+  const router = useRouter();
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      console.log("로그인 성공:", user);
+      router.push("/");
+    } catch (error) {
+      console.error("로그인 에러:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0a] text-black dark:text-white font-sans transition-colors duration-300">
@@ -16,7 +31,6 @@ export default function LoginPage() {
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-[320px] flex flex-col items-center relative">
           
-          {/* 🚀 깔끔한 뒤로 가기 버튼 */}
           <div className="w-full flex items-center mb-6">
             <Link 
               href="/" 
@@ -60,7 +74,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* 🚀 깔끔하게 정돈된 '또는(or)' 구분선 */}
           <div className="w-full flex items-center my-6">
             <div className="flex-1 h-[1px] bg-gray-100 dark:bg-gray-900"></div>
             <span className="px-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.or}</span>
@@ -69,7 +82,8 @@ export default function LoginPage() {
 
           <button 
             type="button" 
-            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-lg bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 text-black dark:text-white font-bold text-[12px] tracking-wider transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
+            onClick={handleGoogleLogin}
+            className="w-full flex items-center justify-center gap-2.5 py-3 rounded-lg bg-white dark:bg-[#111] border border-gray-200 dark:border-gray-800 text-black dark:text-white font-bold text-[12px] tracking-wider transition-colors hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer"
           >
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

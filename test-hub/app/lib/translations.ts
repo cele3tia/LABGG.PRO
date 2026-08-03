@@ -1,6 +1,7 @@
 export const translations = {
   ko: {
     login: "로그인",
+    profile: "프로필", // 추가
     welcome: "다시 오신 것을 환영합니다",
     loginSub: "로그인하여 기록을 저장하세요",
     emailPlaceholder: "이메일 주소",
@@ -13,6 +14,7 @@ export const translations = {
   },
   en: {
     login: "Login",
+    profile: "Profile", // 추가
     welcome: "Welcome back",
     loginSub: "Sign in to save your scores",
     emailPlaceholder: "Email address",
