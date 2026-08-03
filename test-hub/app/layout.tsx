@@ -1,14 +1,10 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-// 💡 1. Next.js 전용 Script 컴포넌트 불러오기
-import Script from 'next/script'; 
-
-const inter = Inter({ subsets: ['latin'] });
+import { Providers } from './components/providers'; // 추가
 
 export const metadata: Metadata = {
   title: 'LABGG.PRO',
-  description: 'PROVE YOUR PHYSICAL LIMITS WITH NUMBERS.',
+  description: 'Human Limit Test',
 };
 
 export default function RootLayout({
@@ -17,18 +13,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
-      <head>
-        {/* 💡 2. 여기에 구글 애드센스 스크립트 꽂아넣기 */}
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9543272564767938"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
-      </head>
-      <body className={inter.className}>
-        {children}
+    // suppressHydrationWarning은 next-themes 사용 시 필수입니다.
+    <html lang="ko" suppressHydrationWarning>
+      {/* 배경과 글자색이 테마에 따라 부드럽게 바뀌도록 설정 */}
+      <body className="bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
