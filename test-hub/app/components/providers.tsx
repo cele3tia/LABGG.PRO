@@ -15,11 +15,30 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+function getCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+  return null;
+}
+
+function setCookie(name: string, value: string, maxAge: number = 31536000) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=${value}; path=/; max-age=${maxAge}`;
+}
+
 export function Providers({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Language>("ko");
+  // 기본값을 영어("en")로 설정
+  const [lang, setLang] = useState<Language>("en");
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    const savedLang = getCookie("labgg_lang") as Language;
+    if (savedLang && (savedLang === "ko" || savedLang === "en")) {
+      setLang(savedLang);
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
     });
@@ -27,14 +46,19 @@ export function Providers({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleLang = () => {
-    setLang((prev) => (prev === "ko" ? "en" : "ko"));
+    setLang((prev) => {
+      const nextLang = prev === "ko" ? "en" : "ko";
+      setCookie("labgg_lang", nextLang);
+      return nextLang;
+    });
   };
 
   const t = translations[lang];
 
   return (
     <LanguageContext.Provider value={{ lang, toggleLang, t, user }}>
-      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      {/* 기본 테마를 다크(dark)로 설정 */}
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         {children}
       </ThemeProvider>
     </LanguageContext.Provider>
