@@ -1,11 +1,5 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { Providers } from './components/providers'; // 추가
-
-export const metadata: Metadata = {
-  title: 'LABGG.PRO',
-  description: 'Human Limit Test',
-};
+import "./globals.css";
+import { Providers } from "./components/providers";
 
 export default function RootLayout({
   children,
@@ -13,13 +7,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // suppressHydrationWarning은 next-themes 사용 시 필수입니다.
     <html lang="ko" suppressHydrationWarning>
-      {/* 배경과 글자색이 테마에 따라 부드럽게 바뀌도록 설정 */}
-      <body className="bg-white dark:bg-black text-black dark:text-white transition-colors duration-300">
-        <Providers>
-          {children}
-        </Providers>
+      {/* 🚀 body 기본 글자색을 dark:text-gray-200 으로 지정 */}
+      <body className="bg-white dark:bg-[#0a0a0a] text-black dark:text-gray-200 antialiased transition-colors duration-300">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

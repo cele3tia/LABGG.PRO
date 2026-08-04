@@ -1,17 +1,46 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useLanguage } from "../components/providers";
 import { auth, googleProvider } from "../lib/firebase";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginPage() {
   const { t, lang } = useLanguage();
   const router = useRouter();
 
+  // 폼 상태 관리
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // 이메일 로그인 처리 함수
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push("/");
+    } catch (err: any) {
+      console.error("로그인 에러:", err);
+      setError(
+        lang === "ko" 
+          ? "이메일 또는 비밀번호가 올바르지 않습니다." 
+          : "Invalid email or password."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 구글 로그인 처리 함수
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -20,6 +49,11 @@ export default function LoginPage() {
       router.push("/");
     } catch (error) {
       console.error("로그인 에러:", error);
+      setError(
+        lang === "ko"
+          ? "구글 로그인에 실패했습니다."
+          : "Google login failed."
+      );
     }
   };
 
@@ -49,10 +83,21 @@ export default function LoginPage() {
             {t.loginSub}
           </p>
 
-          <form className="w-full space-y-3">
+          {/* 에러 메시지 표시 영역 */}
+          {error && (
+            <div className="w-full mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[12px] font-bold text-center">
+              {error}
+            </div>
+          )}
+
+          {/* 이메일/비밀번호 입력 폼 */}
+          <form onSubmit={handleEmailLogin} className="w-full space-y-3">
             <div>
               <input 
                 type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 placeholder={t.emailPlaceholder} 
                 className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-gray-900 focus:outline-none focus:border-gray-300 dark:focus:border-gray-700 transition-colors text-[13px] placeholder:text-gray-400"
               />
@@ -61,16 +106,27 @@ export default function LoginPage() {
             <div>
               <input 
                 type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
                 placeholder={t.passwordPlaceholder} 
                 className="w-full px-4 py-3 rounded-lg bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-gray-900 focus:outline-none focus:border-gray-300 dark:focus:border-gray-700 transition-colors text-[13px] placeholder:text-gray-400"
               />
             </div>
             
             <button 
-              type="button" 
-              className="w-full py-3 mt-2 rounded-lg bg-black dark:bg-white text-white dark:text-black font-bold text-[12px] tracking-wider uppercase transition-opacity hover:opacity-80"
+              type="submit" 
+              disabled={loading}
+              className="w-full py-3 mt-2 rounded-lg bg-black dark:bg-white text-white dark:text-black font-bold text-[12px] tracking-wider uppercase transition-opacity hover:opacity-80 disabled:opacity-50 flex justify-center items-center h-[42px]"
             >
-              {t.signIn}
+              {loading ? (
+                <svg className="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                t.signIn
+              )}
             </button>
           </form>
 
@@ -95,8 +151,15 @@ export default function LoginPage() {
           </button>
 
           <div className="mt-6 flex items-center justify-between w-full text-[11px] font-bold text-gray-400">
-            <Link href="#" className="hover:text-black dark:hover:text-white transition-colors">{t.forgotPassword}</Link>
-            <Link href="#" className="hover:text-black dark:hover:text-white transition-colors">{t.createAccount}</Link>
+            {/* 🚀 비밀번호 찾기(Forgot Password) 페이지로 넘어가는 링크 */}
+            <Link href="/forgot-password" className="hover:text-black dark:hover:text-white transition-colors">
+              {t.forgotPassword}
+            </Link>
+            
+            {/* 🚀 회원가입(Signup) 페이지로 넘어가는 링크 */}
+            <Link href="/signup" className="hover:text-black dark:hover:text-white transition-colors">
+              {t.createAccount}
+            </Link>
           </div>
           
         </div>

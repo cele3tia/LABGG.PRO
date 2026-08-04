@@ -69,9 +69,6 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
-  // 아바타에 표시할 첫 글자 추출 (닉네임이 있으면 닉네임, 없으면 이메일 첫 글자)
-  const avatarLetter = nickname ? nickname.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase();
-
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0a] text-black dark:text-white font-sans transition-colors duration-300">
       <Header />
@@ -93,13 +90,8 @@ export default function ProfilePage() {
             </Link>
           </div>
 
-          {/* 🚀 프로필 아바타 및 정보 영역 */}
+          {/* 🚀 프로필 정보 영역 (아바타 사진 제거) */}
           <div className="flex flex-col items-center mb-8 w-full">
-            <div className="w-20 h-20 rounded-full bg-gray-50 dark:bg-[#111] border border-gray-100 dark:border-gray-900 flex items-center justify-center mb-4 shadow-sm">
-              <span className="text-3xl font-bold text-gray-300 dark:text-gray-600">
-                {avatarLetter}
-              </span>
-            </div>
             <h1 className="text-xl font-bold tracking-tight mb-1">
               {lang === "ko" ? "내 프로필" : "My Profile"}
             </h1>
@@ -134,7 +126,7 @@ export default function ProfilePage() {
           {/* 구분선 */}
           <div className="w-full h-[1px] bg-gray-100 dark:bg-gray-900 my-8"></div>
 
-          {/* 로그아웃 버튼 (아이콘 추가 및 스타일 개선) */}
+          {/* 로그아웃 버튼 */}
           <button 
             type="button" 
             onClick={handleLogout}
