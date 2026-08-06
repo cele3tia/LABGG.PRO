@@ -39,7 +39,7 @@ export default function Header() {
         }
       `}</style>
 
-      {/* 🚀 로고 텍스트: dark:text-white -> dark:text-gray-200 */}
+      {/* 로고 텍스트 */}
       <Link 
         href="/" 
         className="text-lg font-bold tracking-tight text-black dark:text-gray-200 transition-opacity duration-200 hover:opacity-50 select-none cursor-pointer"
@@ -49,7 +49,15 @@ export default function Header() {
 
       <div className="flex items-center gap-5 sm:gap-6">
         
-        {/* 🚀 언어 변경 버튼: dark:hover:text-white -> dark:hover:text-gray-200 */}
+        {/* 🚀 리더보드 (다국어 t.leaderboard 적용) */}
+        <Link 
+          href="/leaderboard" 
+          className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-gray-200 transition-colors cursor-pointer"
+        >
+          {t.leaderboard}
+        </Link>
+
+        {/* 언어 변경 버튼 */}
         <button
           onClick={toggleLang}
           className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-gray-200 transition-colors cursor-pointer"
@@ -57,7 +65,7 @@ export default function Header() {
           {lang === "ko" ? "KO" : "EN"}
         </button>
 
-        {/* 🚀 디스코드 아이콘: dark:hover:text-white -> dark:hover:text-gray-200 */}
+        {/* 디스코드 아이콘 */}
         <a 
           href="https://discord.gg/SxYwEx2xN8" 
           target="_blank" 
@@ -70,7 +78,7 @@ export default function Header() {
           </svg>
         </a>
 
-        {/* 🚀 인스타그램 아이콘: dark:hover:text-white -> dark:hover:text-gray-200 */}
+        {/* 인스타그램 아이콘 */}
         <a 
           href="https://www.instagram.com/labgg.pro/" 
           target="_blank" 
@@ -85,7 +93,7 @@ export default function Header() {
           </svg>
         </a>
 
-        {/* 🚀 로그인/프로필: dark:hover:text-white -> dark:hover:text-gray-200 */}
+        {/* 로그인/프로필 */}
         {user ? (
           <Link href="/profile" className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 transition-colors duration-200 hover:text-black dark:hover:text-gray-200">
             {t.profile}
@@ -102,7 +110,6 @@ export default function Header() {
           className="group relative flex items-center justify-center w-7 h-7 ml-4 rounded-full bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-300 overflow-hidden"
           aria-label="Toggle Theme"
         >
-          {/* 🚀 해 아이콘: dark:group-hover:text-white -> dark:group-hover:text-gray-200 */}
           <svg
             xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
             className={`absolute text-gray-500 dark:text-gray-400 group-hover:text-black dark:group-hover:text-gray-200 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
@@ -112,7 +119,6 @@ export default function Header() {
             <circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>
           </svg>
           
-          {/* 🚀 달 아이콘: dark:group-hover:text-white -> dark:group-hover:text-gray-200 */}
           <svg
             xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
             className={`absolute text-gray-400 dark:text-gray-300 group-hover:text-black dark:group-hover:text-gray-200 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] animate-moon-line-glow ${

@@ -1,17 +1,23 @@
-import type { Config } from "tailwindcss";
-
-const config: Config = {
-  // 👇 이 줄을 반드시 추가해야 dark:bg-black 같은 코드가 작동합니다!
-  darkMode: "class", 
-  
+/** @type {import('tailwindcss').Config} */
+const config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  darkMode: "class",
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        border: "var(--border)",
+        input: "var(--input)",
+        ring: "var(--ring)",
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+      },
+    },
   },
   plugins: [],
 };
+
 export default config;
