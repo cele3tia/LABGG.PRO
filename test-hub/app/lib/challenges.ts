@@ -1,6 +1,6 @@
 export interface Challenge {
   id: string;
-  name: string;
+  name: string; // 🚀 다시 깔끔한 문자열로 복구
   worldRecord: string;
   holder: string;
   personalBest: string;
@@ -12,16 +12,14 @@ export interface Challenge {
 export const challenges: Challenge[] = [
   { 
     id: "cps", 
-    name: "1 Min Clicks", 
+    name: "1 Min Clicks", // 🚀 고유명사 감성 유지 (번역 안 함)
     worldRecord: "760 Clicks", 
     holder: "Yiğit Arslan (Yigox)", 
     personalBest: "-", 
     guinness: "https://www.guinnessworldrecords.com/world-records/781836-most-mouse-clicks-in-one-minute", 
     video: "https://www.youtube.com/shorts/babsG1t1oq4",
-    // 🚀 여기 hqdefault를 maxresdefault로 변경했습니다!
     thumbnail: "https://i.ytimg.com/vi/babsG1t1oq4/maxresdefault.jpg" 
   },
-  // ... (나머지 게임 데이터는 기존과 동일하게 유지)
   { id: "alphabet", name: "Alphabet A-Z", worldRecord: "3.25 SEC", holder: "AlphaTypist", personalBest: "-", guinness: "#", video: "#", thumbnail: "#" },
   { id: "typing", name: "Typing Speed", worldRecord: "212 WPM", holder: "Stella", personalBest: "-", guinness: "#", video: "#", thumbnail: "#" },
   { id: "reaction", name: "Reaction Time", worldRecord: "101 MS", holder: "Faker", personalBest: "-", guinness: "#", video: "#", thumbnail: "#" },
