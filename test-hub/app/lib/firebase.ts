@@ -1,25 +1,25 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth"; // 🚀 GoogleAuthProvider 불러오기
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBhK2KoetN91Fr7Pv5guvvRf2h0X_VcVCc",
-  authDomain: "labgg-d6594.firebaseapp.com",
-  databaseURL: "https://labgg-d6594-default-rtdb.firebaseio.com",
-  projectId: "labgg-d6594",
-  storageBucket: "labgg-d6594.firebasestorage.app",
-  messagingSenderId: "278542037889",
-  appId: "1:278542037889:web:d0e2656bb56f27455fee80",
-  measurementId: "G-6Z6HP95H99"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// 중복 초기화 방지
+// Next.js 핫 리로드 중복 초기화 방지
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
+
+// 🚀 구글 로그인 제공자 추가
 const googleProvider = new GoogleAuthProvider();
 
-// Analytics는 브라우저(Client) 환경에서만 실행되도록 안전하게 처리
-let analytics = null;
+let analytics: any;
 if (typeof window !== "undefined") {
   isSupported().then((supported) => {
     if (supported) {
@@ -28,4 +28,5 @@ if (typeof window !== "undefined") {
   });
 }
 
+// 🚀 내보내기(export)에 googleProvider 포함
 export { app, auth, googleProvider, analytics };
