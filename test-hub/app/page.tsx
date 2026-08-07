@@ -4,10 +4,20 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+// @ts-ignore
 import OptionWheel from "../components/OptionWheel"; 
 import { Volume2, VolumeX, ArrowRight, Trophy, ExternalLink, Play, Lock, Medal } from "lucide-react";
 import { challenges } from "@/app/lib/challenges";
 import { useLanguage } from "./components/providers";
+
+const challengeDetails: Record<string, { desc: string }> = {
+  cps: {
+    desc: "Click your left mouse button as many times as possible within 60 seconds. Compare your extreme clicking speed with the official Guinness World Record.",
+  },
+  default: {
+    desc: "Test your skills and push your limits in this challenge. Are you ready to beat the world record?",
+  }
+};
 
 const getEmbedUrl = (url: string) => {
   if (!url || url === "#") return "";
@@ -30,17 +40,17 @@ export default function HomePage() {
   const TARGET_INDEX = 0;
 
   const [mounted, setMounted] = useState(false);
-  
   const [wheelTarget, setWheelTarget] = useState(START_INDEX); 
   const [displayIndex, setDisplayIndex] = useState(START_INDEX); 
 
   const activeChallenge = challenges[displayIndex];
+  const activeDetails = challengeDetails[activeChallenge.id] || challengeDetails.default;
 
   const [isMuted, setIsMuted] = useState(false);
   const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   
   const clickAudioRef = useRef<HTMLAudioElement | null>(null);
-  const wheelOptions = challenges.map(c => c.name);
+  const wheelOptions = challenges ? challenges.map(c => c.name) : [];
 
   const toggleMute = () => setIsMuted(!isMuted);
 
@@ -88,112 +98,147 @@ export default function HomePage() {
   const isActiveGame = activeChallenge.id === "cps";
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0a] text-black dark:text-gray-200 transition-colors duration-300">
+    <div className="relative min-h-screen flex flex-col bg-[#050505] text-white transition-colors duration-300">
+      
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,rgba(37,99,235,0.06)_0%,transparent_65%)] pointer-events-none z-0"></div>
+      
       <Header />
 
-      <div className={`transition-opacity duration-1000 ease-out ${mounted ? "opacity-100" : "opacity-0"}`}>
+      <div className={`transition-opacity duration-1000 ease-out z-50 ${mounted ? "opacity-100" : "opacity-0"}`}>
         <button
           onClick={toggleMute}
-          className="fixed bottom-8 left-8 md:bottom-12 md:left-12 z-50 p-3 rounded-full bg-gray-100/50 dark:bg-[#111111]/80 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:scale-110 transition-all backdrop-blur-sm shadow-sm"
+          className="fixed bottom-8 left-8 md:bottom-12 md:left-12 z-50 p-3 rounded-full bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-white/10 hover:scale-110 transition-all backdrop-blur-md shadow-sm"
           aria-label="Toggle Sound"
         >
-          {isMuted ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
+          {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
         </button>
       </div>
 
       <main 
-        className={`flex-1 w-full max-w-[1500px] mx-auto px-6 md:px-12 py-12 md:py-20 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16 select-none relative transition-opacity duration-1000 ease-out ${
+        className={`flex-1 w-full max-w-[1500px] mx-auto px-6 md:px-12 flex flex-col lg:flex-row items-center justify-between gap-12 relative min-h-[calc(100vh-140px)] z-10 pt-12 transition-opacity duration-1000 ease-out ${
           mounted ? "opacity-100" : "opacity-0"
         }`}
       >
         
-        {/* 🚀 왼쪽 휠 영역 확장 (lg:w-1/2 -> lg:w-7/12) */}
-        <div className="w-full lg:w-7/12 flex items-center justify-center lg:justify-end shrink-0 relative">
-          <div className="absolute w-[400px] h-[400px] bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
+        {/* 🚀 좌측 휠 영역: justify-start로 변경하여 화면 맨 왼쪽 끝으로 완전히 박아버림 */}
+        <div className="w-full lg:w-[45%] flex justify-start relative">
           
-          {/* 🚀 휠 컨테이너 크기 확장 */}
-          <div className="relative w-[350px] h-[350px] md:w-[500px] md:h-[500px] lg:w-[650px] lg:h-[650px] flex items-center justify-center">
+          <div className="relative w-full max-w-[700px] h-[700px] flex items-center justify-start">
             <OptionWheel 
               items={wheelOptions}
               defaultSelected={wheelTarget} 
               onChange={handleChange}
               loop={true}
-              textColor="var(--muted-foreground)"
-              activeColor="var(--foreground)"
               soundUrl="/sounds/tick.mp3"
               soundVolume={isMuted ? 0 : 0.3}
-              /* 🚀 휠 폰트를 키우고 간격을 쫀쫀하게 조절! */
               fontSize={4}
-              spacing={1.2}
+              spacing={1.15}
+              curve={1.2}
+              tilt={6}
+              blur={1.5}
+              fade={0.2}
+              minOpacity={0.15}
+              /* 🚀 핵심 수정: 안쪽 여백을 60px로 대폭 줄여서 왼쪽 벽에 바짝 밀착시킴 */
+              inset={60} 
             />
           </div>
         </div>
 
-        {/* 🚀 오른쪽 대시보드 영역 축소 (lg:w-1/2 -> lg:w-5/12) */}
-        <div className="w-full lg:w-5/12 flex flex-col items-center lg:items-start text-center lg:text-left z-10 pl-0 lg:pl-4">
+        {/* 🚀 우측 대시보드 영역 */}
+        <div className="w-full lg:w-[50%] flex justify-start pb-12">
           
-          {/* 🚀 텍스트 크기 살짝 다이어트 */}
-          <h1 className="text-4xl md:text-5xl lg:text-[4rem] font-black tracking-tighter uppercase leading-[0.95] mb-6 dark:text-white transition-all duration-300">
-            {activeChallenge.name}
-          </h1>
-          
-          {/* 🚀 최대 너비(max-w)를 550px에서 460px로 줄여 컴팩트하게! */}
-          <div className="flex flex-col gap-5 w-full max-w-[460px] items-center lg:items-start">
+          <div className="flex flex-col w-full max-w-[500px]">
             
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+            <h1 className="text-4xl md:text-[3.8rem] lg:text-[4.2rem] font-black tracking-tighter uppercase leading-none text-white mb-4 transition-all duration-300">
+              {activeChallenge.name}
+            </h1>
+            
+            <p className="text-base text-gray-400 mb-8 leading-relaxed whitespace-normal">
+              {activeDetails.desc}
+            </p>
+            
+            <div className="w-full grid grid-cols-2 gap-5 mb-8">
               
-              {/* 🚀 패딩 축소 (p-6 -> p-5) */}
-              <div className="flex flex-col gap-1.5 p-5 bg-gray-50/50 dark:bg-[#111111]/80 border border-gray-200 dark:border-gray-800 rounded-xl">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              <div className="flex flex-col p-6 bg-white/[0.03] border border-white/10 rounded-xl relative overflow-hidden">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                   <Trophy className="w-4 h-4 text-blue-500" />
                   World Record
                 </div>
-                <div className="text-2xl lg:text-3xl font-black tracking-tighter text-black dark:text-white uppercase mt-1">
+                <div className="text-3xl font-black tracking-tighter text-white uppercase mt-2">
                   {activeChallenge.worldRecord}
                 </div>
-                <div className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-1">
+                <div className="text-[11px] font-bold text-blue-500 uppercase tracking-widest mt-1">
                   by {activeChallenge.holder}
                 </div>
               </div>
 
               {user ? (
-                <div className="flex flex-col gap-1.5 p-5 bg-gray-50/50 dark:bg-[#111111]/80 border border-gray-200 dark:border-gray-800 rounded-xl">
-                  <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                <div className="flex flex-col p-6 bg-white/[0.03] border border-white/10 rounded-xl relative overflow-hidden">
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest">
                     <Medal className="w-4 h-4 text-blue-500" />
                     Your Record
                   </div>
-                  <div className="text-2xl lg:text-3xl font-black tracking-tighter text-black dark:text-white uppercase mt-1">
-                    {activeChallenge.personalBest}
-                  </div>
-                  <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">
-                    {user.displayName || user.email?.split("@")[0]}
-                  </div>
+                  {activeChallenge.personalBest !== "-" ? (
+                    <>
+                      <div className="text-3xl font-black tracking-tighter text-white uppercase mt-2">
+                        {activeChallenge.personalBest}
+                      </div>
+                      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1 truncate">
+                        {user.displayName || user.email?.split("@")[0]}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col justify-center h-full mt-2">
+                      <div className="text-xl font-black tracking-tighter text-white uppercase">
+                        NO RECORD YET
+                      </div>
+                      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">
+                        Play to set record
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div 
                   onClick={() => router.push('/login')}
-                  className="group flex flex-col justify-center gap-1 p-5 bg-blue-50 dark:bg-blue-500/5 border border-dashed border-blue-300 dark:border-blue-500/30 hover:border-blue-500 transition-all rounded-xl cursor-pointer"
+                  className="group flex flex-col justify-center p-6 bg-blue-500/5 border border-dashed border-blue-500/30 hover:border-blue-500 transition-all rounded-xl cursor-pointer"
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Lock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-500 group-hover:scale-110 transition-transform" />
-                    <span className="text-[9px] font-bold text-blue-600 dark:text-blue-500 uppercase tracking-widest">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock className="w-4 h-4 text-blue-500 group-hover:scale-110 transition-transform" />
+                    <span className="text-[11px] font-bold text-blue-500 uppercase tracking-widest">
                       Your Record
                     </span>
                   </div>
-                  <div className="text-base lg:text-lg font-black tracking-tighter text-gray-800 dark:text-gray-200 uppercase leading-none">
+                  <div className="text-xl font-black tracking-tighter text-white uppercase leading-none">
                     Login to Save
                   </div>
-                  <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                    Click here to sign in
+                  <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                    Track your stats
                   </div>
                 </div>
               )}
-
             </div>
 
-            {activeChallenge.thumbnail && activeChallenge.thumbnail !== "#" && (
-              <div className="w-full flex flex-col gap-3">
-                <div className="relative w-full aspect-[21/9] sm:aspect-[16/9] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm bg-black">
+            {/* 비디오 섹션 */}
+            {activeChallenge.video !== "#" && (
+              <div className="w-full flex flex-col mb-8">
+                
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Official Video</span>
+                  {activeChallenge.guinness !== "#" && (
+                    <a 
+                      href={activeChallenge.guinness} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="group px-4 py-2 border border-white/10 bg-white/[0.02] hover:bg-white/[0.08] rounded-md text-[11px] font-bold text-gray-300 uppercase tracking-widest transition-colors flex items-center gap-2"
+                    >
+                      <Trophy className="w-3.5 h-3.5 text-blue-400" />
+                      View Guinness Record
+                    </a>
+                  )}
+                </div>
+
+                <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden border border-white/10 bg-black group/video shadow-lg">
                   {isPlayingVideo ? (
                     <iframe
                       width="100%"
@@ -208,57 +253,42 @@ export default function HomePage() {
                   ) : (
                     <button 
                       onClick={() => setIsPlayingVideo(true)}
-                      className="group absolute inset-0 w-full h-full cursor-pointer block"
+                      className="absolute inset-0 w-full h-full cursor-pointer block overflow-hidden bg-black focus:outline-none"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
                         src={activeChallenge.thumbnail} 
-                        alt="Video Thumbnail" 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                        alt="Challenge Thumbnail" 
+                        className="w-full h-full object-cover transition-transform duration-700 ease-out opacity-80 block"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-center items-center">
-                        <div className="w-14 h-14 bg-blue-600/90 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-500 transition-all duration-300">
-                          <Play className="w-6 h-6 text-white fill-white ml-1" />
+                      
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/50 pointer-events-none"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
+
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                        <div className="relative w-20 h-20 bg-gray-500/40 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center group-hover/video:scale-110 group-hover/video:bg-gray-400/50 transition-transform duration-300 shadow-xl">
+                          <Play className="w-8 h-8 text-white fill-white ml-1 opacity-90" />
                         </div>
                       </div>
                     </button>
                   )}
                 </div>
-
-                {activeChallenge.guinness !== "#" && (
-                  <div className="flex justify-start px-1 pb-3 border-b border-gray-100 dark:border-gray-900">
-                    <a 
-                      href={activeChallenge.guinness} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="group flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-gray-400 hover:text-blue-600 dark:hover:text-blue-500 uppercase tracking-widest transition-colors w-max"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                      View Official Guinness Record
-                    </a>
-                  </div>
-                )}
               </div>
             )}
 
-            <div className="w-full mt-1">
-              {/* 🚀 버튼 높이 살짝 다이어트 (py-5 -> py-4) */}
+            <div className="w-full mb-0">
               <button 
                 onClick={handleStart}
-                className={`group flex items-center justify-between px-6 sm:px-8 py-4 font-black text-lg uppercase tracking-widest transition-all w-full rounded-xl ${
+                className={`group flex items-center justify-between px-8 py-6 font-black text-xl uppercase tracking-widest transition-all w-full rounded-xl shadow-lg ${
                   isActiveGame 
-                    ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-lg shadow-blue-600/20" 
-                    : "bg-gray-100 dark:bg-[#111111] text-gray-400 dark:text-gray-600 border border-gray-200 dark:border-gray-800 active:scale-95 cursor-not-allowed"
+                    ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]" 
+                    : "bg-[#111111] text-gray-600 border border-white/5 active:scale-[0.98] cursor-not-allowed"
                 }`}
               >
                 <span>{isActiveGame ? "Start Challenge" : "Coming Soon"}</span>
-                <ArrowRight className={`w-5 h-5 transition-transform ${isActiveGame ? "group-hover:translate-x-2" : "opacity-50"}`} />
+                <ArrowRight className={`w-6 h-6 transition-transform ${isActiveGame ? "group-hover:translate-x-2" : "opacity-50"}`} />
               </button>
             </div>
-            
-            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center lg:text-left h-4 w-full">
-              {!isActiveGame && "Scroll to [1 Min Clicks] to start playing."}
-            </p>
             
           </div>
         </div>

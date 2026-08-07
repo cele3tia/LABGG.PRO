@@ -1,8 +1,8 @@
 .option-wheel {
-  --ow-text-color: #a6a6a6;
+  /* 🚀 너무 까맣지도 않고, 너무 밝지도 않은 '정확한 중간' 회색톤 */
+  --ow-text-color: #737373; 
   --ow-active-color: #ffffff;
-  --ow-font-size: 3rem;
-  --ow-inset: 80px;
+  --ow-font-size: 4rem; 
 
   position: relative;
   width: 100%;
@@ -12,27 +12,32 @@
   user-select: none;
   touch-action: none;
   outline: none;
+  /* 위아래 끝부분만 살짝 부드럽게 지워주는 마스크 (과하지 않게) */
+  mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
 }
 
 .option-wheel--dragging {
   cursor: grabbing;
 }
 
-/* Each option is absolutely centered, then offset along the curve by the
-   rAF loop through transform/opacity/filter, so everything stays in step. */
 .option-wheel__item {
   position: absolute;
   top: 50%;
   left: var(--ow-inset);
   white-space: nowrap;
+  
+  /* 🚀 맘대로 크기 변하던 쓸데없는 이펙트 완전 삭제. 폰트 크기 고정 */
   font-size: var(--ow-font-size);
-  line-height: 1;
-  font-weight: 200;
+  line-height: 1.1;
+  font-weight: 400; /* 안 선택된 텍스트는 일반 굵기로 깔끔하게 */
+  letter-spacing: -0.02em;
   transform-origin: left center;
   cursor: pointer;
   will-change: transform, opacity, filter;
-  /* --ow-p goes 0 -> 1 as an option approaches the middle of the wheel */
+  
   color: color-mix(in srgb, var(--ow-active-color) calc(var(--ow-p, 0) * 100%), var(--ow-text-color));
+  transition: font-weight 0.2s ease;
 }
 
 .option-wheel--right .option-wheel__item {
@@ -41,6 +46,8 @@
   transform-origin: right center;
 }
 
+/* 🚀 선택된 항목: 크기는 그대로 두고 굵고 선명하게 발광 */
 .option-wheel__item--selected {
-  font-weight: 500;
+  font-weight: 700; 
+  text-shadow: 0px 2px 15px rgba(255, 255, 255, 0.2); 
 }
