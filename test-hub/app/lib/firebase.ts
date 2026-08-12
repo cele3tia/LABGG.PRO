@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth"; // 🚀 GoogleAuthProvider 불러오기
+import { getFirestore } from "firebase/firestore"; // 🚀 1. Firestore 불러오기 추가
 import { getAnalytics, isSupported } from "firebase/analytics";
 
 const firebaseConfig = {
@@ -16,6 +17,9 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 
+// 🚀 2. Firestore 초기화 및 db 변수 생성
+const db = getFirestore(app);
+
 // 🚀 구글 로그인 제공자 추가
 const googleProvider = new GoogleAuthProvider();
 
@@ -28,5 +32,5 @@ if (typeof window !== "undefined") {
   });
 }
 
-// 🚀 내보내기(export)에 googleProvider 포함
-export { app, auth, googleProvider, analytics };
+// 🚀 3. 내보내기(export)에 db 포함시켜서 다른 파일에서 에러 안 나게 처리
+export { app, auth, db, googleProvider, analytics };

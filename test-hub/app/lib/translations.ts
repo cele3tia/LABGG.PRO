@@ -14,9 +14,9 @@ export const translations = {
     forgotPassword: "비밀번호를 잊으셨나요?",
     createAccount: "회원가입",
     
-    // 🚀 메인 대시보드용 데이터 추가
+    // 메인 대시보드용 데이터
     worldRecord: "세계 기록",
-    by: "작성자:",
+    by: "by", // 🚀 '작성자' 삭제, 영문 간지 유지
     yourRecord: "내 기록",
     noRecord: "기록 없음",
     playToSet: "기록을 세워보세요",
@@ -27,6 +27,30 @@ export const translations = {
     startChallenge: "챌린지 시작하기",
     comingSoon: "출시 예정",
     readyMsg: " 챌린지는 곧 오픈됩니다!",
+
+    // UI 및 시스템 텍스트
+    challengePrefix: "Challenge", // 🚀 촌스러운 '챌린지' 번역 취소
+    globalRankings: "글로벌 랭킹",
+    rank: "순위",
+    player: "플레이어",
+    score: "점수",
+    adminModeActive: "관리자 모드 활성화",
+    loading: "로딩 중...",
+    noRecordsFound: "등록된 기록이 없습니다",
+    verify: "인증",
+    revoke: "인증 해제",
+    clickToStart: "화면을 클릭하여 시작하기",
+    enableSound: "사운드 및 애니메이션이 활성화됩니다",
+
+    // 🚀 게임 카테고리 (영문 간지 유지)
+    catMouseClicking: "Mouse Clicking",
+    catKeyboardTyping: "Keyboard Typing",
+    catReactionTime: "Reaction Time",
+    catAimTracking: "Aim Tracking",
+    catMemoryTest: "Memory Test",
+    catCognitiveTest: "Cognitive Test",
+    catMouseSkill: "Mouse Skill",
+    catSkillTest: "Skill Test",
   },
   en: {
     // 기존 데이터
@@ -43,7 +67,7 @@ export const translations = {
     forgotPassword: "Forgot password?",
     createAccount: "Create account",
 
-    // 🚀 메인 대시보드용 데이터 추가
+    // 메인 대시보드용 데이터
     worldRecord: "World Record",
     by: "by",
     yourRecord: "Your Record",
@@ -56,6 +80,30 @@ export const translations = {
     startChallenge: "Start Challenge",
     comingSoon: "Coming Soon",
     readyMsg: " is coming soon!",
+
+    // UI 및 시스템 텍스트
+    challengePrefix: "Challenge",
+    globalRankings: "Global Rankings",
+    rank: "Rank",
+    player: "Player",
+    score: "Score",
+    adminModeActive: "Admin Mode Active",
+    loading: "Loading...",
+    noRecordsFound: "No Records Found",
+    verify: "Verify",
+    revoke: "Revoke",
+    clickToStart: "CLICK ANYWHERE TO START",
+    enableSound: "ENABLE SOUND AND INTERACTIONS",
+
+    // 게임 카테고리
+    catMouseClicking: "Mouse Clicking",
+    catKeyboardTyping: "Keyboard Typing",
+    catReactionTime: "Reaction Time",
+    catAimTracking: "Aim Tracking",
+    catMemoryTest: "Memory Test",
+    catCognitiveTest: "Cognitive Test",
+    catMouseSkill: "Mouse Skill",
+    catSkillTest: "Skill Test",
   },
 };
 
