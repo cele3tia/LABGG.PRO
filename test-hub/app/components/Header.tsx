@@ -57,17 +57,22 @@ export default function Header() {
       {/* 💻 메인 헤더 */}
       <header className="linear-font flex items-center justify-between px-6 h-14 bg-white/60 dark:bg-[#0a0a0a]/70 backdrop-blur-md border-b border-black/[0.05] dark:border-white/[0.05] fixed inset-x-0 top-0 z-[10000] transition-colors duration-300">
         
-        {/* 🚀 텍스트 굵기 한단계 다이어트 (font-semibold -> font-medium) */}
+        {/* 🚀 로고 크기 초미세 확대 (w-[30px] h-[30px]) */}
         <Link 
           href="/" 
           onClick={() => setIsOpen(false)}
           className="flex items-center gap-[5px] -translate-x-[6px] md:-translate-x-[2px] group cursor-pointer select-none"
         >
-          <img 
-            src="/logo-mark-light.png" 
-            alt="LABGG Logo" 
-            className="w-7 h-7 object-contain dark:invert -translate-y-px"
-          />
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            viewBox="0 0 24 24"
+            className="w-[30px] h-[30px] -translate-y-px"
+          >
+            {/* 왼쪽 네모: 다크모드면 흰색(#fff), 라이트모드면 검은색(#000)으로 자동 변경 */}
+            <rect x="3" y="5" width="8" height="15" rx="3" fill={isDark ? "#fff" : "#000"} />
+            {/* 오른쪽 네모: 유저님의 브랜드 컬러(주황색 #FF5500) 영구 고정 */}
+            <rect x="13" y="5" width="8" height="15" rx="3" fill="none" stroke="#FF5500" strokeWidth="1.6" />
+          </svg>
           <span className="text-lg font-medium tracking-tighter text-[#111] dark:text-white transition-opacity duration-300 group-hover:opacity-70">
             Labgg.pro
           </span>
@@ -76,7 +81,6 @@ export default function Header() {
         {/* 💻 우측 영역 */}
         <div className="flex items-center h-full">
           
-          {/* 💻 데스크탑 전용 메뉴 */}
           <div className="hidden md:flex items-center gap-5 sm:gap-6">
             <Link href="/leaderboard" className="text-[11px] font-medium tracking-widest uppercase text-gray-500 dark:text-gray-400 hover:text-[#111] dark:hover:text-gray-200 transition-colors cursor-pointer">
               {t.leaderboard}
@@ -112,7 +116,6 @@ export default function Header() {
             </button>
           </div>
 
-          {/* 📱 모바일 전용 영역 */}
           <div className="flex md:hidden items-center gap-3">
             {user ? (
               <Link href="/profile" onClick={() => setIsOpen(false)} className="flex items-center justify-center px-3.5 py-1.5 rounded-full bg-black/5 dark:bg-white/10 text-[#111] dark:text-white text-[13px] font-medium hover:bg-black/10 dark:hover:bg-white/20 transition-colors duration-200">
@@ -139,7 +142,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/* 🚀 라이트/다크 반투명 글래스 유지 (모바일 메뉴) */}
+      {/* 🚀 모바일 메뉴 */}
       <div 
         className={`linear-font md:hidden fixed inset-0 z-[9998] bg-white/40 dark:bg-[#0a0a0a]/70 backdrop-blur-lg pt-14 transform transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] flex flex-col ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
