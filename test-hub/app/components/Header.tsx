@@ -38,7 +38,7 @@ export default function Header() {
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         
         .linear-font {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
@@ -57,12 +57,20 @@ export default function Header() {
       {/* 💻 메인 헤더 */}
       <header className="linear-font flex items-center justify-between px-6 h-14 bg-white/60 dark:bg-[#0a0a0a]/70 backdrop-blur-md border-b border-black/[0.05] dark:border-white/[0.05] fixed inset-x-0 top-0 z-[10000] transition-colors duration-300">
         
+        {/* 🚀 텍스트 굵기 한단계 다이어트 (font-semibold -> font-medium) */}
         <Link 
           href="/" 
           onClick={() => setIsOpen(false)}
-          className="text-lg font-semibold tracking-tighter text-[#111] dark:text-white select-none cursor-pointer hover:opacity-70 transition-opacity"
+          className="flex items-center gap-[5px] -translate-x-[6px] md:-translate-x-[2px] group cursor-pointer select-none"
         >
-          LABGG.PRO
+          <img 
+            src="/logo-mark-light.png" 
+            alt="LABGG Logo" 
+            className="w-7 h-7 object-contain dark:invert -translate-y-px"
+          />
+          <span className="text-lg font-medium tracking-tighter text-[#111] dark:text-white transition-opacity duration-300 group-hover:opacity-70">
+            Labgg.pro
+          </span>
         </Link>
 
         {/* 💻 우측 영역 */}
@@ -131,7 +139,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/* 🚀 라이트/다크 반투명 글래스 유지 */}
+      {/* 🚀 라이트/다크 반투명 글래스 유지 (모바일 메뉴) */}
       <div 
         className={`linear-font md:hidden fixed inset-0 z-[9998] bg-white/40 dark:bg-[#0a0a0a]/70 backdrop-blur-lg pt-14 transform transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] flex flex-col ${
           isOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
@@ -169,7 +177,6 @@ export default function Header() {
               </span>
             </button>
 
-            {/* 🚀 모바일 전용: 테마 옆 해/달 아이콘 완전히 제거하고 순수 텍스트만 남김 */}
             <button onClick={toggleTheme} className="w-full flex items-center justify-between py-2 group focus:outline-none">
               <span className="text-lg font-medium tracking-tight text-[#111] dark:text-white group-hover:opacity-70 transition-opacity">{t.theme || "Theme"}</span>
               <span className="text-sm font-bold tracking-widest text-gray-400 group-hover:text-[#111] dark:group-hover:text-white transition-colors">
