@@ -16,7 +16,7 @@ export const translations = {
     
     // 메인 대시보드용 데이터
     worldRecord: "세계 기록",
-    by: "by", // 🚀 '작성자' 삭제, 영문 간지 유지
+    by: "by", 
     yourRecord: "내 기록",
     noRecord: "기록 없음",
     playToSet: "기록을 세워보세요",
@@ -29,7 +29,7 @@ export const translations = {
     readyMsg: " 챌린지는 곧 오픈됩니다!",
 
     // UI 및 시스템 텍스트
-    challengePrefix: "Challenge", // 🚀 촌스러운 '챌린지' 번역 취소
+    challengePrefix: "Challenge", 
     globalRankings: "글로벌 랭킹",
     rank: "순위",
     player: "플레이어",
@@ -42,7 +42,7 @@ export const translations = {
     clickToStart: "화면을 클릭하여 시작하기",
     enableSound: "사운드 및 애니메이션이 활성화됩니다",
 
-    // 🚀 게임 카테고리 (영문 간지 유지)
+    // 게임 카테고리 
     catMouseClicking: "Mouse Clicking",
     catKeyboardTyping: "Keyboard Typing",
     catReactionTime: "Reaction Time",
@@ -51,10 +51,19 @@ export const translations = {
     catCognitiveTest: "Cognitive Test",
     catMouseSkill: "Mouse Skill",
     catSkillTest: "Skill Test",
+
+    // 🚀 헤더 메뉴용 추가 번역 (resources -> social 변경)
+    system: "시스템",
+    social: "소셜", 
+    preferences: "설정",
+    language: "언어",
+    theme: "테마",
+    dark: "다크",
+    light: "라이트",
   },
   en: {
     // 기존 데이터
-    login: "Login",
+    login: "Log in", 
     profile: "Profile",
     leaderboard: "Leaderboard",
     welcome: "Welcome back",
@@ -73,7 +82,7 @@ export const translations = {
     yourRecord: "Your Record",
     noRecord: "NO RECORD YET",
     playToSet: "Play to set record",
-    loginToSave: "Login to Save",
+    loginToSave: "Log in to Save", 
     trackStats: "Track your stats",
     officialVideo: "Official Video",
     viewGuinness: "View Guinness Record",
@@ -104,6 +113,15 @@ export const translations = {
     catCognitiveTest: "Cognitive Test",
     catMouseSkill: "Mouse Skill",
     catSkillTest: "Skill Test",
+
+    // 🚀 헤더 메뉴용 추가 번역 (resources -> social 변경)
+    system: "System",
+    social: "Social", 
+    preferences: "Preferences",
+    language: "Language",
+    theme: "Theme",
+    dark: "DARK",
+    light: "LIGHT",
   },
 };
 
