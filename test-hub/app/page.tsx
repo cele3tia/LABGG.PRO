@@ -7,7 +7,8 @@ import Footer from "./components/Footer";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
 import { db, auth } from "./lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+// 🚀 DB에서 전체 1등을 찾기 위해 query, collection, orderBy, limit 기능을 추가로 가져옵니다!
+import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
 const categories = [
   { id: "CLICK", name: "Click", desc: "Mouse physical benchmarks" },
@@ -15,11 +16,10 @@ const categories = [
   { id: "MEMORY", name: "Memory", desc: "Cognitive & memory benchmarks" }
 ];
 
-// 🚀 Typing Speed 영구 삭제! Spacebar CPS 유지!
 const challenges = [
-  { id: "alphabet", category: "TYPING", name: "Alphabet A-Z", wr: "3.25 SEC", type: "GUINNESS" }, 
-  { id: "alphabet-za", category: "TYPING", name: "Alphabet Z-A", wr: "2.88 SEC", type: "GUINNESS" }, 
-  { id: "spacebar", category: "TYPING", name: "Spacebar CPS", wr: "--", type: "LABGG.PRO" }, 
+  { id: "alphabet", category: "TYPING", name: "Alphabet A-Z", wr: "3.25 SEC", type: "GUINNESS", dbField: "alphabetAZ", order: "asc" }, 
+  { id: "alphabet-za", category: "TYPING", name: "Alphabet Z-A", wr: "2.88 SEC", type: "GUINNESS", dbField: "alphabetZA", order: "asc" }, 
+  { id: "spacebar", category: "TYPING", name: "Spacebar CPS", wr: "--", type: "LABGG.PRO", dbField: "spacebar", order: "desc" }, 
   { id: "cps-60s", category: "CLICK", name: "CPS Test (60s)", wr: "12.67 CPS", type: "GUINNESS" }, 
   { id: "cps-10s", category: "CLICK", name: "CPS Test (10s)", wr: "--", type: "LABGG.PRO" }, 
   { id: "reaction", category: "CLICK", name: "Reaction Time", wr: "--", type: "LABGG.PRO" },
@@ -31,10 +31,14 @@ const challenges = [
 export default function HomePage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
   const [userPbs, setUserPbs] = useState<Record<string, string>>({});
+  // 🚀 전 세계 1등(WR) 기록들을 저장할 state 추가!
+  const [globalWrs, setGlobalWrs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const fetchRecords = async () => {
+    // 1️⃣ 내 최고 기록(PB) 불러오기
+    const fetchMyRecords = async () => {
       const uid = auth.currentUser?.uid || localStorage.getItem("labgg_device_id");
       if (!uid) return; 
 
@@ -53,11 +57,48 @@ export default function HomePage() {
           setUserPbs(pbs);
         }
       } catch (error) {
-        console.error("🔥 Firebase DB 로드 에러:", error);
+        console.error("🔥 Firebase PB 로드 에러:", error);
       }
     };
 
-    setTimeout(fetchRecords, 300); 
+    // 🚀 2️⃣ 전 세계 1등 기록(LABGG.PRO) 싹 긁어오기!
+    const fetchGlobalRecords = async () => {
+      const wrs: Record<string, string> = {};
+      const recordsCol = collection(db, "records");
+
+      // 우리가 만든 3개 종목만 우선 1등을 찾습니다.
+      const activeChallenges = challenges.filter(c => c.dbField);
+
+      for (const chal of activeChallenges) {
+        try {
+          // 해당 종목(dbField)이 있는 문서들 중, 오름차순/내림차순 정렬해서 딱 1개(limit 1)만 가져옵니다!
+          const q = query(recordsCol, orderBy(chal.dbField as string, chal.order as "asc" | "desc"), limit(1));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const topDoc = querySnapshot.docs[0].data();
+            const topScore = topDoc[chal.dbField as string];
+            
+            // 종목에 맞게 단위(s, CPS) 붙여주기
+            if (chal.id.includes("alphabet")) {
+              wrs[chal.id] = `${topScore.toFixed(3)}s`;
+            } else if (chal.id === "spacebar") {
+              wrs[chal.id] = `${topScore.toFixed(2)} CPS`;
+            }
+          }
+        } catch (error) {
+          // DB 인덱스가 아직 안 만들어졌을 때 뜨는 에러 무시
+          console.log(`[안내] ${chal.id} 종목의 1등을 찾으려면 Firebase 콘솔에서 '인덱스(Index)'를 생성해야 할 수도 있습니다.`);
+        }
+      }
+      setGlobalWrs(wrs);
+    };
+
+    setTimeout(() => {
+      fetchMyRecords();
+      fetchGlobalRecords(); // 카테고리 누를 때 전 세계 1등 기록도 같이 로딩!
+    }, 300); 
+
   }, [selectedCategory]);
 
   const filteredChallenges = challenges.filter(c => c.category === selectedCategory);
@@ -67,8 +108,8 @@ export default function HomePage() {
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         html, body { font-family: 'Inter', sans-serif !important; -webkit-font-smoothing: antialiased !important; }
-        :root, [data-theme="light"] { --c-bg: #fcfcfc; --c-border: rgba(0,0,0,0.08); --c-dot: rgba(0,0,0,0.06); --c-text1: #111; --c-text2: #555; --c-text3: #999; --c-brand: #FF5500; }
-        .dark, [data-theme="dark"] { --c-bg: #0a0a0a; --c-border: rgba(255,255,255,0.08); --c-dot: rgba(255,255,255,0.04); --c-text1: #f3f3f3; --c-text2: #aaa; --c-text3: #666; --c-brand: #FF5500; }
+        :root, [data-theme="light"] { --c-bg: #fcfcfc; --c-border: rgba(0,0,0,0.08); --c-dot: rgba(0,0,0,0.06); --c-text1: #111; --c-text2: #555; --c-text3: #999; --c-accent: #FF5500; }
+        .dark, [data-theme="dark"] { --c-bg: #0a0a0a; --c-border: rgba(255,255,255,0.08); --c-dot: rgba(255,255,255,0.04); --c-text1: #f3f3f3; --c-text2: #aaa; --c-text3: #666; --c-accent: #FF5500; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; opacity: 0; }
       `}} />
@@ -98,9 +139,9 @@ export default function HomePage() {
           <div className="flex flex-col gap-2">
             {!selectedCategory && categories.map((cat, idx) => (
               <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="group relative flex items-center justify-between w-full py-6 px-5 sm:px-8 rounded-2xl border border-transparent hover:bg-white dark:hover:bg-[#141414] hover:border-black/5 dark:hover:border-white/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.02)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up text-left overflow-hidden" style={{ animationDelay: `${(idx + 1) * 70}ms` }}>
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--c-brand)] origin-center scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100" />
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--c-accent)] origin-center scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100" />
                 <div className="flex items-center gap-5 sm:gap-8 transition-transform duration-300 ease-out group-hover:translate-x-2 shrink-0">
-                  <span className="font-mono text-sm sm:text-base font-semibold transition-colors duration-300 group-hover:text-[var(--c-brand)]" style={{ color: "var(--c-text3)" }}>{String(idx + 1).padStart(2, '0')}</span>
+                  <span className="font-mono text-sm sm:text-base font-semibold transition-colors duration-300 group-hover:text-[var(--c-accent)]" style={{ color: "var(--c-text3)" }}>{String(idx + 1).padStart(2, '0')}</span>
                   <div className="flex flex-col items-start gap-1">
                     <h2 className="text-xl sm:text-3xl font-bold tracking-[-0.02em] uppercase transition-colors duration-300" style={{ color: "var(--c-text1)" }}>{cat.name}</h2>
                     <p className="text-xs sm:text-[13px] font-medium tracking-wide" style={{ color: "var(--c-text3)" }}>{cat.desc}</p>
@@ -114,32 +155,40 @@ export default function HomePage() {
 
             {selectedCategory && filteredChallenges.map((chal, idx) => (
               <button key={chal.id} onClick={() => router.push(`/${chal.id}`)} className="group relative flex items-center justify-between w-full py-4 px-4 sm:px-6 rounded-2xl border border-transparent hover:bg-white dark:hover:bg-[#141414] hover:border-black/5 dark:hover:border-white/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.02)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up text-left overflow-hidden" style={{ animationDelay: `${(idx + 1) * 70}ms` }}>
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--c-brand)] origin-center scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100" />
+                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--c-accent)] origin-center scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100" />
                 <div className="flex items-center gap-4 sm:gap-6 transition-transform duration-300 ease-out group-hover:translate-x-2 shrink-0">
-                  <span className="font-mono text-xs sm:text-sm font-semibold transition-colors duration-300 group-hover:text-[var(--c-brand)]" style={{ color: "var(--c-text3)" }}>{String(idx + 1).padStart(2, '0')}</span>
+                  <span className="font-mono text-xs sm:text-sm font-semibold transition-colors duration-300 group-hover:text-[var(--c-accent)]" style={{ color: "var(--c-text3)" }}>{String(idx + 1).padStart(2, '0')}</span>
                   <h2 className="text-lg sm:text-2xl font-semibold tracking-[-0.02em] uppercase transition-colors duration-300" style={{ color: "var(--c-text1)" }}>{chal.name}</h2>
                 </div>
 
                 <div className="flex items-center gap-4 sm:gap-5 transition-transform duration-300 ease-out group-hover:-translate-x-1">
                   <div className="hidden sm:flex items-center gap-4 mr-2 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex flex-col items-end gap-1.5">
+                      
+                      {/* 기네스 세계 기록 */}
                       {chal.type === "GUINNESS" && (
                         <div className="flex items-center gap-2">
                           <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-text3)]/10 text-[var(--c-text3)]">GUINNESS</span>
                           <span className="font-mono text-[12px] font-semibold text-[var(--c-text2)] tracking-tight">{chal.wr}</span>
                         </div>
                       )}
+                      
+                      {/* 🚀 LABGG.PRO 전 세계 1등 기록 꽂아주는 곳! (기록이 없으면 -- 표시) */}
                       <div className="flex items-center gap-2">
-                        <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-brand)]/10 text-[var(--c-brand)]">LABGG.PRO</span>
-                        <span className="font-mono text-[12px] font-semibold text-[var(--c-text1)] tracking-tight">{chal.type === "LABGG.PRO" ? chal.wr : "--"}</span>
+                        <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-accent)]/10 text-[var(--c-accent)]">LABGG.PRO</span>
+                        <span className="font-mono text-[12px] font-semibold text-[var(--c-text1)] tracking-tight">
+                          {globalWrs[chal.id] ? globalWrs[chal.id] : (chal.type === "LABGG.PRO" ? chal.wr : "--")}
+                        </span>
                       </div>
+                      
                     </div>
                     
                     <div className="w-[1px] h-8 bg-[var(--c-border)] transition-colors duration-300 group-hover:bg-black/10 dark:group-hover:bg-white/10" />
 
+                    {/* 내 최고 기록 (PB) */}
                     <div className="flex flex-col items-start w-[50px] justify-center">
                       <span className="text-[9px] font-bold tracking-[0.1em] text-[var(--c-text3)] mb-[2px]">PB</span>
-                      <span className="font-mono text-[13px] font-semibold text-[var(--c-brand)] tracking-tight">
+                      <span className="font-mono text-[13px] font-semibold text-[var(--c-accent)] tracking-tight">
                         {userPbs[chal.id] || "--"}
                       </span>
                     </div>
@@ -153,7 +202,7 @@ export default function HomePage() {
           </div>
         </div>
       </main>
-      <div className="fixed bottom-0 inset-x-0 z-[9000] bg-white/60 dark:bg-[#0a0a0a]/70 backdrop-blur-md border-t border-black/[0.05] dark:border-white/[0.05] transition-colors duration-300">
+      <div className="fixed bottom-0 inset-x-0 z-[9000] bg-[var(--c-bg)] transition-colors duration-300">
         <Footer />
       </div>
     </div>
