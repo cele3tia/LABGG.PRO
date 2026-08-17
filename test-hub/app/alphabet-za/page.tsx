@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../components/Header"; // 경로 주의!
+import Footer from "../components/Footer"; // 경로 주의!
 import { ArrowLeft, RotateCcw } from "lucide-react";
 
-import { db, auth } from "../lib/firebase";
+import { db, auth } from "../lib/firebase"; // 경로 주의!
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+// 🚀 ZA 역방향 알파벳 (진짜 뒤지게 헷갈립니다 ㅋㅋㅋ)
+const ALPHABET = "ZYXWVUTSRQPONMLKJIHGFEDCBA";
 
-export default function AlphabetAZChallenge() {
+export default function AlphabetZAChallenge() {
   const [status, setStatus] = useState<"idle" | "playing" | "finished">("idle");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
@@ -23,11 +24,7 @@ export default function AlphabetAZChallenge() {
   const [pb, setPb] = useState<number | null>(null);
   const [isNewPb, setIsNewPb] = useState(false);
   const [userId, setUserId] = useState<string>("");
-  
   const inputRef = useRef<HTMLInputElement>(null);
-  const resetBtnRef = useRef<HTMLButtonElement>(null);
-  const charRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const [cursorPos, setCursorPos] = useState({ left: 0, top: 0, height: 0 });
 
   useEffect(() => {
     const fetchPb = async () => {
@@ -41,8 +38,9 @@ export default function AlphabetAZChallenge() {
       try {
         const docRef = doc(db, "records", uid);
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && docSnap.data().alphabetAZ) {
-          setPb(docSnap.data().alphabetAZ);
+        // 🚀 DB에서 alphabetZA 필드를 찾습니다!
+        if (docSnap.exists() && docSnap.data().alphabetZA) {
+          setPb(docSnap.data().alphabetZA);
         }
       } catch (error) {
         console.error("🔥 DB 로드 실패:", error);
@@ -50,25 +48,6 @@ export default function AlphabetAZChallenge() {
     };
     setTimeout(fetchPb, 500); 
   }, []);
-
-  useEffect(() => {
-    const updateCursorPosition = () => {
-      const targetIndex = status === "finished" ? 25 : currentIndex;
-      const currentElem = charRefs.current[targetIndex];
-      
-      if (currentElem) {
-        setCursorPos({
-          left: currentElem.offsetLeft + (status === "finished" ? currentElem.offsetWidth : 0),
-          top: currentElem.offsetTop,
-          height: currentElem.offsetHeight
-        });
-      }
-    };
-    
-    setTimeout(updateCursorPosition, 10);
-    window.addEventListener("resize", updateCursorPosition);
-    return () => window.removeEventListener("resize", updateCursorPosition);
-  }, [currentIndex, status]);
 
   const processChar = async (typedChar: string) => {
     if (status === "finished") return;
@@ -97,14 +76,21 @@ export default function AlphabetAZChallenge() {
           if (userId) {
             try {
               const currentUser = auth.currentUser;
-              const dataToSave: any = { alphabetAZ: timeInSeconds, updatedAt: new Date() };
+              const dataToSave: any = {
+                alphabetZA: timeInSeconds, // 🚀 ZA 기록 저장
+                updatedAt: new Date()
+              };
+
               if (currentUser) {
                 dataToSave.uid = currentUser.uid;
                 dataToSave.email = currentUser.email || "";
                 dataToSave.displayName = currentUser.displayName || "익명 타자수";
               }
+
               await setDoc(doc(db, "records", userId), dataToSave, { merge: true });
-            } catch (error) {}
+            } catch (error) {
+              console.error("🔥 DB 저장 실패:", error);
+            }
           }
         } else {
           setIsNewPb(false);
@@ -123,26 +109,20 @@ export default function AlphabetAZChallenge() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "Tab" || (status === "finished" && e.key === "Enter")) {
         e.preventDefault();
-        resetBtnRef.current?.focus();
+        handleReset();
         return;
       }
-      if (e.key === "Enter") {
-        if (document.activeElement === resetBtnRef.current || status === "finished") {
-          e.preventDefault();
-          handleReset();
-        }
-        return;
-      }
-
-      if (e.ctrlKey || e.metaKey || e.altKey) return; 
       if (status === "finished" || e.keyCode === 229) return; 
 
       let typedChar = "";
-      if (e.code && e.code.startsWith("Key")) typedChar = e.code.replace("Key", ""); 
-      else if (/^[a-zA-Z]$/.test(e.key)) typedChar = e.key.toUpperCase();
-      else return;
+      if (e.code && e.code.startsWith("Key")) {
+        typedChar = e.code.replace("Key", ""); 
+      } else if (/^[a-zA-Z]$/.test(e.key)) {
+        typedChar = e.key.toUpperCase();
+      } else return;
 
       e.preventDefault(); 
       processChar(typedChar);
@@ -174,9 +154,7 @@ export default function AlphabetAZChallenge() {
 
   useEffect(() => {
     const focusInput = () => {
-      if (status !== "finished" && inputRef.current && document.activeElement !== resetBtnRef.current) {
-        inputRef.current.focus();
-      }
+      if (status !== "finished" && inputRef.current) inputRef.current.focus();
     };
     document.addEventListener("click", focusInput);
     focusInput(); 
@@ -195,83 +173,52 @@ export default function AlphabetAZChallenge() {
     if (inputRef.current) inputRef.current.focus();
   };
 
-  const displayTime = status === "finished" && finalTime ? (finalTime / 1000).toFixed(3) : (currentTime / 1000).toFixed(3);
-  const accuracy = status === "finished" ? ((26 / (26 + errors)) * 100).toFixed(1) : "100";
+  const displayTime = status === "finished" && finalTime 
+    ? (finalTime / 1000).toFixed(3) 
+    : (currentTime / 1000).toFixed(3);
+
+  const accuracy = status === "finished" 
+    ? ((26 / (26 + errors)) * 100).toFixed(1) 
+    : "100";
 
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300 relative" style={{ backgroundColor: "var(--c-bg)", color: "var(--c-text1)", backgroundImage: "radial-gradient(var(--c-dot) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
-      
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes custom-cursor-blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-      `}} />
-      
       <Header />
       <input ref={inputRef} type="text" onChange={handleInput} className="absolute opacity-0 -z-10 pointer-events-none" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" />
 
       <main className="flex-1 w-full max-w-4xl mx-auto px-6 flex flex-col justify-center pt-16 pb-32 relative z-10">
-        
         <Link href="/" className="group flex items-center gap-2 text-[var(--c-text3)] hover:text-[var(--c-text1)] transition-colors mb-8 focus:outline-none w-fit">
           <div className="flex items-center justify-center w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 group-hover:bg-[var(--c-text1)] group-hover:text-[var(--c-bg)] transition-all duration-300">
             <ArrowLeft className="w-3.5 h-3.5" />
           </div>
-          {/* 🚀 폰트 강제 고정! font-sans 클래스와 인라인 스타일로 'Inter'를 이중으로 박아버렸습니다! */}
-          <span 
-            className="text-xs font-bold tracking-widest font-sans mt-px" 
-            style={{ fontFamily: "'Inter', sans-serif" }}
-          >
-            Back
-          </span>
+          <span className="text-xs font-bold tracking-widest uppercase mt-px">Back</span>
         </Link>
 
         <div className="flex flex-col items-center justify-center w-full min-h-[400px]">
-          <div className={`font-mono text-3xl sm:text-4xl font-semibold tracking-tighter mb-12 text-[var(--c-accent)] transition-opacity duration-300 ${status === "idle" ? "opacity-0" : "opacity-100"}`}>
+          <div className={`font-mono text-3xl sm:text-4xl font-semibold tracking-tighter mb-12 text-[var(--c-brand)] transition-opacity duration-300 ${status === "idle" ? "opacity-0" : "opacity-100"}`}>
             {displayTime}
           </div>
 
           {status !== "finished" ? (
             <div className="relative font-mono text-[2.5rem] sm:text-[4rem] leading-tight tracking-[0.1em] sm:tracking-[0.15em] break-all select-none w-full text-center" style={{ wordSpacing: "4px" }}>
-              
-              <div 
-                className="absolute w-[3px] z-50 pointer-events-none transition-all duration-100 ease-out"
-                style={{ 
-                  left: cursorPos.left, 
-                  top: cursorPos.top, 
-                  height: cursorPos.height * 0.8,
-                  marginTop: cursorPos.height * 0.1,
-                  transform: "translateX(-4px)", 
-                  backgroundColor: isError ? "#ef4444" : "var(--c-accent, #FF5500)",
-                  animation: status === "idle" ? "custom-cursor-blink 1s ease-in-out infinite" : "none" 
-                }}
-              />
-
               {ALPHABET.split("").map((char, i) => {
-                const isTyped = i < currentIndex;
                 const isCurrent = i === currentIndex;
-                
                 return (
-                  <span 
-                    key={char} 
-                    ref={el => { charRefs.current[i] = el; }}
-                    className={`relative inline-block transition-colors duration-150 
-                      ${isTyped ? "text-[var(--c-text1)]" : "text-[var(--c-text3)] opacity-40"}
-                      ${isCurrent && isError ? "!text-red-500 !opacity-100" : ""}
-                    `}
-                  >
+                  <span key={char} className={`relative inline-block transition-colors duration-150 ${i < currentIndex ? "text-[var(--c-text1)]" : isCurrent && isError ? "text-red-500" : isCurrent ? "text-[var(--c-text1)]" : "text-[var(--c-text3)] opacity-40"}`}>
+                    {isCurrent && (
+                      <span className={`absolute left-0 top-[10%] w-[2px] sm:w-[3px] h-[80%] animate-pulse ${isError ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" : "bg-[var(--c-brand)] shadow-[0_0_8px_var(--c-brand)]"}`} style={{ transform: "translateX(-4px)" }} />
+                    )}
                     {char}
                   </span>
                 );
               })}
-
             </div>
           ) : (
             <div className="flex flex-col items-center animate-fade-in-up">
               <div className="flex items-start gap-3 text-6xl sm:text-8xl font-mono font-bold tracking-tighter text-[var(--c-text1)] mb-4">
                 {displayTime}<span className="text-3xl sm:text-5xl text-[var(--c-text3)] mt-3">s</span>
                 {isNewPb && (
-                  <div className="mt-2 text-[10px] sm:text-xs font-bold tracking-widest text-[var(--c-accent)] bg-[var(--c-accent)]/10 px-2.5 py-1 rounded-[4px] uppercase">
+                  <div className="mt-2 text-[10px] sm:text-xs font-bold tracking-widest text-[var(--c-brand)] bg-[var(--c-brand)]/10 px-2.5 py-1 rounded-[4px] uppercase">
                     PB
                   </div>
                 )}
@@ -291,21 +238,16 @@ export default function AlphabetAZChallenge() {
           )}
 
           <div className="mt-16 flex flex-col items-center gap-4">
-            <button 
-              ref={resetBtnRef}
-              onClick={handleReset} 
-              className="flex items-center justify-center w-14 h-14 rounded-full text-[var(--c-text3)] hover:text-[var(--c-text1)] hover:bg-black/5 dark:hover:bg-white/10 focus:text-[var(--c-text1)] focus:bg-black/10 dark:focus:bg-white/20 transition-colors focus:outline-none group"
-            >
+            <button onClick={handleReset} className="flex items-center justify-center w-14 h-14 rounded-full text-[var(--c-text3)] hover:text-[var(--c-text1)] hover:bg-black/5 dark:hover:bg-white/10 transition-colors focus:outline-none group">
               <RotateCcw className="w-6 h-6 group-hover:-rotate-90 transition-transform duration-300" />
             </button>
             <span className="font-mono text-xs text-[var(--c-text3)] opacity-60 uppercase tracking-widest">
-              tab + enter to restart
+              tab / enter to restart
             </span>
           </div>
         </div>
       </main>
-
-      <div className="fixed bottom-0 inset-x-0 z-[9000] bg-[var(--c-bg)] transition-colors duration-300">
+      <div className="fixed bottom-0 inset-x-0 z-[9000] bg-white/60 dark:bg-[#0a0a0a]/70 backdrop-blur-md border-t border-black/[0.05] dark:border-white/[0.05] transition-colors duration-300">
         <Footer />
       </div>
     </div>

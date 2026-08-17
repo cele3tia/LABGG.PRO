@@ -6,7 +6,6 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
-// 🚀 유저님이 만드신 firebase.ts 파일 가져오기
 import { db, auth } from "./lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -16,13 +15,13 @@ const categories = [
   { id: "MEMORY", name: "Memory", desc: "Cognitive & memory benchmarks" }
 ];
 
+// 🚀 Typing Speed 영구 삭제! Spacebar CPS 유지!
 const challenges = [
   { id: "alphabet", category: "TYPING", name: "Alphabet A-Z", wr: "3.25 SEC", type: "GUINNESS" }, 
   { id: "alphabet-za", category: "TYPING", name: "Alphabet Z-A", wr: "2.88 SEC", type: "GUINNESS" }, 
+  { id: "spacebar", category: "TYPING", name: "Spacebar CPS", wr: "--", type: "LABGG.PRO" }, 
   { id: "cps-60s", category: "CLICK", name: "CPS Test (60s)", wr: "12.67 CPS", type: "GUINNESS" }, 
-  { id: "typing", category: "TYPING", name: "Typing Speed", wr: "--", type: "LABGG.PRO" }, 
   { id: "cps-10s", category: "CLICK", name: "CPS Test (10s)", wr: "--", type: "LABGG.PRO" }, 
-  { id: "spacebar", category: "TYPING", name: "Spacebar CPS", wr: "--", type: "LABGG.PRO" },
   { id: "reaction", category: "CLICK", name: "Reaction Time", wr: "--", type: "LABGG.PRO" },
   { id: "number-memory", category: "MEMORY", name: "Number Memory", wr: "--", type: "LABGG.PRO" },
   { id: "sequence-memory", category: "MEMORY", name: "Sequence Memory", wr: "--", type: "LABGG.PRO" },
@@ -32,14 +31,10 @@ const challenges = [
 export default function HomePage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  
-  // 🚀 DB에서 가져온 내 기록 저장하는 곳
   const [userPbs, setUserPbs] = useState<Record<string, string>>({});
 
-  // 🚀 [DB 연동] 메인화면 스코어보드에 내 기록 띄우기
   useEffect(() => {
     const fetchRecords = async () => {
-      // 1. 로그인 UID or 로컬 기기 ID 가져오기
       const uid = auth.currentUser?.uid || localStorage.getItem("labgg_device_id");
       if (!uid) return; 
 
@@ -51,11 +46,9 @@ export default function HomePage() {
           const data = docSnap.data();
           const pbs: Record<string, string> = {};
           
-          // 🔥 DB에 저장된 'alphabet' 값을 소수점 3자리로 매핑
-          if (data.alphabet) {
-            pbs["alphabet"] = `${data.alphabet.toFixed(3)}s`;
-          }
-          // 향후 추가될 다른 종목들도 여기에 한 줄씩 추가하면 스코어보드 연동 끝!
+          if (data.alphabetAZ || data.alphabet) pbs["alphabet"] = `${(data.alphabetAZ || data.alphabet).toFixed(3)}s`;
+          if (data.alphabetZA) pbs["alphabet-za"] = `${data.alphabetZA.toFixed(3)}s`;
+          if (data.spacebar) pbs["spacebar"] = `${data.spacebar.toFixed(2)} CPS`;
           
           setUserPbs(pbs);
         }
@@ -64,7 +57,6 @@ export default function HomePage() {
       }
     };
 
-    // 카테고리 누를 때마다 갱신
     setTimeout(fetchRecords, 300); 
   }, [selectedCategory]);
 
@@ -147,7 +139,6 @@ export default function HomePage() {
 
                     <div className="flex flex-col items-start w-[50px] justify-center">
                       <span className="text-[9px] font-bold tracking-[0.1em] text-[var(--c-text3)] mb-[2px]">PB</span>
-                      {/* 🚀 파이어베이스에서 실시간으로 땡겨온 내 찐 기록! */}
                       <span className="font-mono text-[13px] font-semibold text-[var(--c-brand)] tracking-tight">
                         {userPbs[chal.id] || "--"}
                       </span>
