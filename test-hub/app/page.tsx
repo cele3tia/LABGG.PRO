@@ -7,7 +7,6 @@ import Footer from "./components/Footer";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
 import { db, auth } from "./lib/firebase";
-// 🚀 DB에서 전체 1등을 찾기 위해 query, collection, orderBy, limit 기능을 추가로 가져옵니다!
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 
 const categories = [
@@ -23,6 +22,8 @@ const challenges = [
   { id: "cps-60s", category: "CLICK", name: "CPS Test (60s)", wr: "12.67 CPS", type: "GUINNESS" }, 
   { id: "cps-10s", category: "CLICK", name: "CPS Test (10s)", wr: "--", type: "LABGG.PRO" }, 
   { id: "reaction", category: "CLICK", name: "Reaction Time", wr: "--", type: "LABGG.PRO" },
+  // 🚀 비주얼 메모리를 MEMORY 카테고리에 완벽하게 추가!
+  { id: "visual-memory", category: "MEMORY", name: "Visual Memory", wr: "--", type: "LABGG.PRO", dbField: "visualMemory", order: "desc" },
   { id: "number-memory", category: "MEMORY", name: "Number Memory", wr: "--", type: "LABGG.PRO" },
   { id: "sequence-memory", category: "MEMORY", name: "Sequence Memory", wr: "--", type: "LABGG.PRO" },
   { id: "chimp-test", category: "MEMORY", name: "Chimp Test", wr: "--", type: "LABGG.PRO" }
@@ -33,45 +34,58 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   
   const [userPbs, setUserPbs] = useState<Record<string, string>>({});
-  // 🚀 전 세계 1등(WR) 기록들을 저장할 state 추가!
   const [globalWrs, setGlobalWrs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // 1️⃣ 내 최고 기록(PB) 불러오기
+    // 1️⃣ 내 최고 기록(PB) 불러오기 (로그인 DB + 비로그인 로컬스토리지 완벽 호환!)
     const fetchMyRecords = async () => {
-      const uid = auth.currentUser?.uid || localStorage.getItem("labgg_device_id");
-      if (!uid) return; 
+      const pbs: Record<string, string> = {};
 
-      try {
-        const docRef = doc(db, "records", uid);
-        const docSnap = await getDoc(docRef);
+      // 🚀 먼저 비회원을 위해 로컬 스토리지에서 기록을 싹 긁어옵니다
+      const localAz = localStorage.getItem("pb_alphabetAZ");
+      if (localAz) pbs["alphabet"] = `${parseFloat(localAz).toFixed(3)}s`;
+      
+      const localZa = localStorage.getItem("pb_alphabetZA");
+      if (localZa) pbs["alphabet-za"] = `${parseFloat(localZa).toFixed(3)}s`;
+      
+      const localSpace = localStorage.getItem("pb_spacebar");
+      if (localSpace) pbs["spacebar"] = `${parseFloat(localSpace).toFixed(2)} CPS`;
+      
+      const localVm = localStorage.getItem("pb_visualMemory");
+      if (localVm) pbs["visual-memory"] = `Level ${parseInt(localVm)}`;
 
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const pbs: Record<string, string> = {};
-          
-          if (data.alphabetAZ || data.alphabet) pbs["alphabet"] = `${(data.alphabetAZ || data.alphabet).toFixed(3)}s`;
-          if (data.alphabetZA) pbs["alphabet-za"] = `${data.alphabetZA.toFixed(3)}s`;
-          if (data.spacebar) pbs["spacebar"] = `${data.spacebar.toFixed(2)} CPS`;
-          
-          setUserPbs(pbs);
+      // 🚀 로그인한 유저라면 Firebase DB 기록으로 로컬 기록을 덮어씁니다!
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        try {
+          const docRef = doc(db, "records", currentUser.uid);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.alphabetAZ || data.alphabet) pbs["alphabet"] = `${(data.alphabetAZ || data.alphabet).toFixed(3)}s`;
+            if (data.alphabetZA) pbs["alphabet-za"] = `${data.alphabetZA.toFixed(3)}s`;
+            if (data.spacebar) pbs["spacebar"] = `${data.spacebar.toFixed(2)} CPS`;
+            // 🚀 비주얼 메모리 DB 로드 추가
+            if (data.visualMemory) pbs["visual-memory"] = `Level ${data.visualMemory}`;
+          }
+        } catch (error) {
+          console.error("🔥 Firebase PB 로드 에러:", error);
         }
-      } catch (error) {
-        console.error("🔥 Firebase PB 로드 에러:", error);
       }
+
+      setUserPbs(pbs);
     };
 
-    // 🚀 2️⃣ 전 세계 1등 기록(LABGG.PRO) 싹 긁어오기!
+    // 2️⃣ 전 세계 1등 기록(LABGG.PRO) 싹 긁어오기!
     const fetchGlobalRecords = async () => {
       const wrs: Record<string, string> = {};
       const recordsCol = collection(db, "records");
 
-      // 우리가 만든 3개 종목만 우선 1등을 찾습니다.
       const activeChallenges = challenges.filter(c => c.dbField);
 
       for (const chal of activeChallenges) {
         try {
-          // 해당 종목(dbField)이 있는 문서들 중, 오름차순/내림차순 정렬해서 딱 1개(limit 1)만 가져옵니다!
           const q = query(recordsCol, orderBy(chal.dbField as string, chal.order as "asc" | "desc"), limit(1));
           const querySnapshot = await getDocs(q);
           
@@ -79,15 +93,16 @@ export default function HomePage() {
             const topDoc = querySnapshot.docs[0].data();
             const topScore = topDoc[chal.dbField as string];
             
-            // 종목에 맞게 단위(s, CPS) 붙여주기
+            // 🚀 종목에 맞게 단위(s, CPS, Level) 붙여주기
             if (chal.id.includes("alphabet")) {
               wrs[chal.id] = `${topScore.toFixed(3)}s`;
             } else if (chal.id === "spacebar") {
               wrs[chal.id] = `${topScore.toFixed(2)} CPS`;
+            } else if (chal.id === "visual-memory") {
+              wrs[chal.id] = `Level ${topScore}`; // 비주얼 메모리 단위!
             }
           }
         } catch (error) {
-          // DB 인덱스가 아직 안 만들어졌을 때 뜨는 에러 무시
           console.log(`[안내] ${chal.id} 종목의 1등을 찾으려면 Firebase 콘솔에서 '인덱스(Index)'를 생성해야 할 수도 있습니다.`);
         }
       }
@@ -96,7 +111,7 @@ export default function HomePage() {
 
     setTimeout(() => {
       fetchMyRecords();
-      fetchGlobalRecords(); // 카테고리 누를 때 전 세계 1등 기록도 같이 로딩!
+      fetchGlobalRecords(); 
     }, 300); 
 
   }, [selectedCategory]);
@@ -165,7 +180,6 @@ export default function HomePage() {
                   <div className="hidden sm:flex items-center gap-4 mr-2 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="flex flex-col items-end gap-1.5">
                       
-                      {/* 기네스 세계 기록 */}
                       {chal.type === "GUINNESS" && (
                         <div className="flex items-center gap-2">
                           <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-text3)]/10 text-[var(--c-text3)]">GUINNESS</span>
@@ -173,7 +187,6 @@ export default function HomePage() {
                         </div>
                       )}
                       
-                      {/* 🚀 LABGG.PRO 전 세계 1등 기록 꽂아주는 곳! (기록이 없으면 -- 표시) */}
                       <div className="flex items-center gap-2">
                         <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-accent)]/10 text-[var(--c-accent)]">LABGG.PRO</span>
                         <span className="font-mono text-[12px] font-semibold text-[var(--c-text1)] tracking-tight">
@@ -185,7 +198,6 @@ export default function HomePage() {
                     
                     <div className="w-[1px] h-8 bg-[var(--c-border)] transition-colors duration-300 group-hover:bg-black/10 dark:group-hover:bg-white/10" />
 
-                    {/* 내 최고 기록 (PB) */}
                     <div className="flex flex-col items-start w-[50px] justify-center">
                       <span className="text-[9px] font-bold tracking-[0.1em] text-[var(--c-text3)] mb-[2px]">PB</span>
                       <span className="font-mono text-[13px] font-semibold text-[var(--c-accent)] tracking-tight">

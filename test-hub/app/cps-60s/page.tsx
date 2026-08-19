@@ -10,9 +10,10 @@ import { db } from "../lib/firebase";
 import { doc, getDoc, setDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { useLanguage } from "../components/providers";
 
-const TIME_LIMIT = 10; // 10초 테스트
+const TIME_LIMIT = 60; 
+const GUINNESS_RECORD = "12.67 CPS";
 
-export default function SpacebarChallenge() {
+export default function Cps60sChallenge() {
   const { lang, user } = useLanguage();
 
   const [status, setStatus] = useState<"idle" | "playing" | "finished">("idle");
@@ -33,22 +34,22 @@ export default function SpacebarChallenge() {
         try {
           const docRef = doc(db, "records", user.uid);
           const docSnap = await getDoc(docRef);
-          if (docSnap.exists() && docSnap.data().spacebar) {
-            setPb(docSnap.data().spacebar);
+          if (docSnap.exists() && docSnap.data().cps60s) {
+            setPb(docSnap.data().cps60s);
           }
         } catch (error) {}
       } else {
-        const localPb = localStorage.getItem("pb_spacebar");
+        const localPb = localStorage.getItem("pb_cps60s");
         if (localPb) setPb(parseFloat(localPb));
       }
     };
 
     const fetchGlobalWr = async () => {
       try {
-        const q = query(collection(db, "records"), orderBy("spacebar", "desc"), limit(1));
+        const q = query(collection(db, "records"), orderBy("cps60s", "desc"), limit(1));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
-          setGlobalWr(`${querySnapshot.docs[0].data().spacebar.toFixed(2)} CPS`);
+          setGlobalWr(`${querySnapshot.docs[0].data().cps60s.toFixed(2)} CPS`);
         }
       } catch (error) {}
     };
@@ -60,43 +61,6 @@ export default function SpacebarChallenge() {
     const interval = setInterval(() => { setTickerIndex((prev) => prev + 1); }, 2000); 
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        e.preventDefault(); 
-        
-        if (e.repeat) return; 
-        
-        if (status === "finished") return;
-
-        if (status === "idle") {
-          setStatus("playing");
-          setStartTime(performance.now());
-          setCount(1);
-        } else if (status === "playing") {
-          setCount((prev) => prev + 1);
-        }
-      }
-
-      if (e.key === "Tab") {
-        e.preventDefault();
-        resetBtnRef.current?.focus();
-        return;
-      }
-      
-      if (e.key === "Enter") {
-        if (document.activeElement === resetBtnRef.current || status === "finished") {
-          e.preventDefault();
-          handleReset(); 
-        }
-        return;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [status]);
 
   useEffect(() => {
     let animationFrame: number;
@@ -118,6 +82,20 @@ export default function SpacebarChallenge() {
     return () => cancelAnimationFrame(animationFrame);
   }, [status, startTime]);
 
+  // 광클 감지 로직 (좌클릭/터치만 허용)
+  const handleClick = (e: React.PointerEvent) => {
+    if (e.button !== 0) return; 
+    if (status === "finished") return;
+
+    if (status === "idle") {
+      setStatus("playing");
+      setStartTime(performance.now());
+      setCount(1);
+    } else if (status === "playing") {
+      setCount((prev) => prev + 1);
+    }
+  };
+
   useEffect(() => {
     if (status === "finished") {
       const finalCps = count / TIME_LIMIT;
@@ -131,23 +109,41 @@ export default function SpacebarChallenge() {
             try {
               const dataToSave: any = {
                 uid: user.uid,
-                displayName: user.displayName || "익명 타자수",
-                spacebar: finalCps,
+                displayName: user.displayName || "익명 플레이어",
+                cps60s: finalCps,
                 updatedAt: new Date()
               };
-
               await setDoc(doc(db, "records", user.uid), dataToSave, { merge: true });
             } catch (error) {}
           };
           saveRecord();
         } else {
-          localStorage.setItem("pb_spacebar", finalCps.toString());
+          localStorage.setItem("pb_cps60s", finalCps.toString());
         }
       } else {
         setIsNewPb(false);
       }
     }
   }, [status, count, pb, user]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        resetBtnRef.current?.focus();
+        return;
+      }
+      if (e.key === "Enter") {
+        if (document.activeElement === resetBtnRef.current || status === "finished") {
+          e.preventDefault();
+          handleReset(); 
+        }
+        return;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [status]);
 
   const handleReset = () => {
     setStatus("idle");
@@ -161,15 +157,14 @@ export default function SpacebarChallenge() {
     ? (count / ((performance.now() - startTime) / 1000)).toFixed(2)
     : "0.00";
 
-  const tickerStats = [];
+  const tickerStats = [
+    { label: "GUINNESS", value: GUINNESS_RECORD, colorV: "text-[var(--c-text2)]" }
+  ];
   if (globalWr && globalWr !== "--") {
     tickerStats.push({ label: "LABGG.PRO", value: globalWr, colorV: "text-[var(--c-accent)]" });
   }
   if (pb) {
     tickerStats.push({ label: "PB", value: `${pb.toFixed(2)} CPS`, colorV: "text-[var(--c-text1)]" });
-  }
-  if (tickerStats.length === 0) {
-    tickerStats.push({ label: "TIME LIMIT", value: "10.00s", colorV: "text-[var(--c-text2)]" });
   }
   
   const length = tickerStats.length;
@@ -218,23 +213,28 @@ export default function SpacebarChallenge() {
 
             {status !== "finished" ? (
               <>
-                <div className={`font-mono text-3xl sm:text-4xl font-semibold tracking-tighter mb-12 text-[var(--c-accent)] transition-opacity duration-200 ${status === "idle" ? "opacity-0 select-none" : "opacity-100"}`}>
+                <div className={`font-mono text-3xl sm:text-4xl font-semibold tracking-tighter mb-10 text-[var(--c-accent)] transition-opacity duration-200 ${status === "idle" ? "opacity-0 select-none" : "opacity-100"}`}>
                   {timeLeft.toFixed(3)}s
                 </div>
 
-                <div className="relative flex flex-col items-center justify-center w-full min-h-[160px] select-none">
+                {/* 🚀 싼티나는 아이콘/박스 싹 삭제! 완벽한 투명 클릭 패드 */}
+                <div 
+                  onPointerDown={handleClick}
+                  onContextMenu={(e) => e.preventDefault()} 
+                  className="relative flex flex-col items-center justify-center w-full max-w-3xl min-h-[300px] select-none touch-none cursor-pointer"
+                >
                   {status === "idle" && (
-                    <div className="font-mono text-[2rem] sm:text-[3rem] font-bold tracking-tight text-[var(--c-text3)] opacity-60 animate-pulse text-center linear-font">
-                      PRESS SPACEBAR
+                    <div className="font-mono text-[2rem] sm:text-[3rem] font-bold tracking-tight text-[var(--c-text3)] opacity-60 animate-pulse text-center linear-font pointer-events-none">
+                      CLICK TO START
                     </div>
                   )}
 
                   {status === "playing" && (
-                    <div className="flex flex-col items-center animate-fade-in-up">
-                      <div className="text-[6rem] sm:text-[10rem] font-bold font-mono tracking-tighter leading-none text-[var(--c-text1)]">
+                    <div className="flex flex-col items-center pointer-events-none animate-fade-in-up">
+                      <div className="text-[7rem] sm:text-[12rem] font-black font-mono tracking-tighter leading-none text-[var(--c-text1)]">
                         {count}
                       </div>
-                      <div className="text-xl sm:text-2xl font-mono font-bold text-[var(--c-text3)] mt-2">
+                      <div className="text-xl sm:text-2xl font-mono font-bold text-[var(--c-accent)] mt-2 sm:mt-4 tracking-wide">
                         {currentCps} CPS
                       </div>
                     </div>
@@ -243,16 +243,18 @@ export default function SpacebarChallenge() {
               </>
             ) : (
               <div className="flex flex-col items-center animate-fade-in-up">
-                <div className="flex items-start gap-3 text-6xl sm:text-8xl font-mono font-bold tracking-tighter text-[var(--c-text1)] mb-4">
-                  {(count / TIME_LIMIT).toFixed(2)}<span className="text-3xl sm:text-5xl text-[var(--c-text3)] mt-3">CPS</span>
+                <div className="text-xl sm:text-2xl font-bold tracking-widest text-[var(--c-text3)] uppercase linear-font mb-4">
+                  CPS TEST (60s)
+                </div>
+                <div className="flex items-start gap-3 text-7xl sm:text-9xl font-mono font-bold tracking-tighter text-[var(--c-text1)] mb-8 relative">
+                  {(count / TIME_LIMIT).toFixed(2)}<span className="text-3xl sm:text-5xl text-[var(--c-text3)] mt-4 sm:mt-6">CPS</span>
                   {isNewPb && (
-                    <div className="mt-2 text-[10px] sm:text-xs font-bold tracking-widest text-[var(--c-accent)] bg-[var(--c-accent)]/10 px-2.5 py-1 rounded-[4px] uppercase linear-font">
+                    <div className="absolute -top-1 sm:-top-2 -right-12 sm:-right-14 text-[10px] sm:text-xs font-bold tracking-widest text-[var(--c-accent)] bg-[var(--c-accent)]/10 px-2.5 py-1 rounded-[4px] uppercase linear-font">
                       PB
                     </div>
                   )}
                 </div>
                 
-                {/* 🚀 여기 있던 로그인 안내 문구를 삭제하고 통계들을 한 덩어리로 예쁘게 묶었습니다 */}
                 <div className="flex items-center gap-4 sm:gap-6 text-[var(--c-text3)] font-mono text-lg sm:text-xl">
                   {!isNewPb && pb && (
                     <>
@@ -267,21 +269,20 @@ export default function SpacebarChallenge() {
               </div>
             )}
 
-            <div className="mt-16 flex flex-col items-center gap-4 w-full">
+            <div className="mt-20 flex flex-col items-center gap-4 w-full">
               <button 
                 ref={resetBtnRef}
                 onClick={handleReset} 
-                className="flex items-center justify-center w-12 h-12 rounded-full text-[var(--c-text3)] hover:text-[var(--c-text1)] hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none group transition-all duration-300"
+                className="flex items-center justify-center w-14 h-14 rounded-full text-[var(--c-text3)] hover:text-[var(--c-text1)] hover:bg-black/5 dark:hover:bg-white/10 focus:outline-none group transition-all duration-300"
               >
-                <RotateCcw className="w-5 h-5 group-hover:-rotate-90 transition-transform duration-300" />
+                <RotateCcw className="w-6 h-6 group-hover:-rotate-90 transition-transform duration-300" />
               </button>
               <span className="text-xs font-bold text-[var(--c-text3)] opacity-60 uppercase tracking-widest linear-font">
                 tab + enter to restart
               </span>
 
-              {/* 🚀 로그인 안내 문구를 여기 맨 밑으로 내렸습니다! */}
               {!user && status === "finished" && (
-                <div className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-[var(--c-text3)] linear-font opacity-80 animate-fade-in-up">
+                <div className="mt-4 flex items-center gap-1.5 text-[11px] font-medium text-[var(--c-text3)] linear-font opacity-80 animate-fade-in-up">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
                   <span>
                     {lang === "ko" ? "기록을 랭킹에 등록하려면 " : "To save your score on the leaderboard, please "}
