@@ -4,44 +4,46 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowDownAZ, ArrowDownZA, Keyboard, MousePointerClick, Zap, LayoutGrid, Binary, Grip, Search } from "lucide-react";
 
 import { db, auth } from "./lib/firebase";
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-
-const categories = [
-  { id: "CLICK", name: "Click", desc: "Mouse physical benchmarks" },
-  { id: "TYPING", name: "Typing", desc: "Keyboard physical benchmarks" },
-  { id: "MEMORY", name: "Memory", desc: "Cognitive & memory benchmarks" }
-];
+import { useLanguage } from "./components/providers";
 
 const challenges = [
-  { id: "alphabet", category: "TYPING", name: "Alphabet A-Z", wr: "3.25 SEC", type: "GUINNESS", dbField: "alphabetAZ", order: "asc" }, 
-  { id: "alphabet-za", category: "TYPING", name: "Alphabet Z-A", wr: "2.88 SEC", type: "GUINNESS", dbField: "alphabetZA", order: "asc" }, 
-  { id: "spacebar", category: "TYPING", name: "Spacebar CPS", wr: "--", type: "LABGG.PRO", dbField: "spacebar", order: "desc" }, 
-  { id: "cps-60s", category: "CLICK", name: "CPS Test (60s)", wr: "12.67 CPS", type: "GUINNESS" }, 
-  { id: "cps-10s", category: "CLICK", name: "CPS Test (10s)", wr: "--", type: "LABGG.PRO" }, 
-  { id: "reaction", category: "CLICK", name: "Reaction Time", wr: "--", type: "LABGG.PRO" },
-  // 🚀 비주얼 메모리를 MEMORY 카테고리에 완벽하게 추가!
-  { id: "visual-memory", category: "MEMORY", name: "Visual Memory", wr: "--", type: "LABGG.PRO", dbField: "visualMemory", order: "desc" },
-  { id: "number-memory", category: "MEMORY", name: "Number Memory", wr: "--", type: "LABGG.PRO" },
-  { id: "sequence-memory", category: "MEMORY", name: "Sequence Memory", wr: "--", type: "LABGG.PRO" },
-  { id: "chimp-test", category: "MEMORY", name: "Chimp Test", wr: "--", type: "LABGG.PRO" }
+  { id: "alphabet", category: "TYPING", name: "Alphabet A-Z", desc: { en: "Type A to Z as fast as possible.", ko: "A부터 Z까지 최대한 빨리 누르세요." }, icon: ArrowDownAZ, wr: "3.25 SEC", type: "GUINNESS", dbField: "alphabetAZ", order: "asc" }, 
+  { id: "alphabet-za", category: "TYPING", name: "Alphabet Z-A", desc: { en: "Type Z to A backwards.", ko: "Z부터 A까지 거꾸로 누르세요." }, icon: ArrowDownZA, wr: "2.88 SEC", type: "GUINNESS", dbField: "alphabetZA", order: "asc" }, 
+  { id: "spacebar", category: "TYPING", name: "Spacebar CPS", desc: { en: "Mash the spacebar for 10 seconds.", ko: "10초 동안 스페이스바를 미친듯이 누르세요." }, icon: Keyboard, wr: "--", type: "LABGG.PRO", dbField: "spacebar", order: "desc" }, 
+  { id: "cps-60s", category: "CLICK", name: "CPS Test (60s)", desc: { en: "Click as fast as you can for 60 seconds.", ko: "60초 동안 마우스를 최대한 빨리 클릭하세요." }, icon: MousePointerClick, wr: "12.67 CPS", type: "GUINNESS", dbField: "cps60s", order: "desc" }, 
+  { id: "cps-10s", category: "CLICK", name: "CPS Test (10s)", desc: { en: "Click as fast as you can for 10 seconds.", ko: "10초 동안 마우스를 최대한 빨리 클릭하세요." }, icon: MousePointerClick, wr: "--", type: "LABGG.PRO" }, 
+  { id: "reaction", category: "CLICK", name: "Reaction Time", desc: { en: "Test your visual reflexes.", ko: "시각적 반사 신경을 테스트하세요." }, icon: Zap, wr: "--", type: "LABGG.PRO" },
+  { id: "visual-memory", category: "MEMORY", name: "Visual Memory", desc: { en: "Remember an increasingly large board of squares.", ko: "점점 늘어나는 타일 패턴을 기억하세요." }, icon: LayoutGrid, wr: "--", type: "LABGG.PRO", dbField: "visualMemory", order: "desc" },
+  { id: "number-memory", category: "MEMORY", name: "Number Memory", desc: { en: "Remember the longest number you can.", ko: "최대한 긴 숫자를 기억하세요." }, icon: Binary, wr: "--", type: "LABGG.PRO" },
+  { id: "sequence-memory", category: "MEMORY", name: "Sequence Memory", desc: { en: "Remember an increasingly long pattern.", ko: "점점 길어지는 순서를 기억하세요." }, icon: Grip, wr: "--", type: "LABGG.PRO" }
 ];
+
+const categoryLabels: Record<string, { en: string, ko: string }> = {
+  "ALL": { en: "ALL", ko: "전체" },
+  "CLICK": { en: "CLICK", ko: "클릭" },
+  "TYPING": { en: "TYPING", ko: "타이핑" },
+  "MEMORY": { en: "MEMORY", ko: "메모리" }
+};
 
 export default function HomePage() {
   const router = useRouter();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { lang } = useLanguage();
+  const currentLang = lang === "ko" ? "ko" : "en";
+  
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeCategory, setActiveCategory] = useState("ALL");
   
   const [userPbs, setUserPbs] = useState<Record<string, string>>({});
   const [globalWrs, setGlobalWrs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    // 1️⃣ 내 최고 기록(PB) 불러오기 (로그인 DB + 비로그인 로컬스토리지 완벽 호환!)
     const fetchMyRecords = async () => {
       const pbs: Record<string, string> = {};
 
-      // 🚀 먼저 비회원을 위해 로컬 스토리지에서 기록을 싹 긁어옵니다
       const localAz = localStorage.getItem("pb_alphabetAZ");
       if (localAz) pbs["alphabet"] = `${parseFloat(localAz).toFixed(3)}s`;
       
@@ -50,11 +52,13 @@ export default function HomePage() {
       
       const localSpace = localStorage.getItem("pb_spacebar");
       if (localSpace) pbs["spacebar"] = `${parseFloat(localSpace).toFixed(2)} CPS`;
+
+      const localCps60 = localStorage.getItem("pb_cps60s");
+      if (localCps60) pbs["cps-60s"] = `${parseFloat(localCps60).toFixed(2)} CPS`;
       
       const localVm = localStorage.getItem("pb_visualMemory");
       if (localVm) pbs["visual-memory"] = `Level ${parseInt(localVm)}`;
 
-      // 🚀 로그인한 유저라면 Firebase DB 기록으로 로컬 기록을 덮어씁니다!
       const currentUser = auth.currentUser;
       if (currentUser) {
         try {
@@ -66,18 +70,15 @@ export default function HomePage() {
             if (data.alphabetAZ || data.alphabet) pbs["alphabet"] = `${(data.alphabetAZ || data.alphabet).toFixed(3)}s`;
             if (data.alphabetZA) pbs["alphabet-za"] = `${data.alphabetZA.toFixed(3)}s`;
             if (data.spacebar) pbs["spacebar"] = `${data.spacebar.toFixed(2)} CPS`;
-            // 🚀 비주얼 메모리 DB 로드 추가
+            if (data.cps60s) pbs["cps-60s"] = `${data.cps60s.toFixed(2)} CPS`;
             if (data.visualMemory) pbs["visual-memory"] = `Level ${data.visualMemory}`;
           }
-        } catch (error) {
-          console.error("🔥 Firebase PB 로드 에러:", error);
-        }
+        } catch (error) {}
       }
 
       setUserPbs(pbs);
     };
 
-    // 2️⃣ 전 세계 1등 기록(LABGG.PRO) 싹 긁어오기!
     const fetchGlobalRecords = async () => {
       const wrs: Record<string, string> = {};
       const recordsCol = collection(db, "records");
@@ -93,18 +94,15 @@ export default function HomePage() {
             const topDoc = querySnapshot.docs[0].data();
             const topScore = topDoc[chal.dbField as string];
             
-            // 🚀 종목에 맞게 단위(s, CPS, Level) 붙여주기
             if (chal.id.includes("alphabet")) {
               wrs[chal.id] = `${topScore.toFixed(3)}s`;
-            } else if (chal.id === "spacebar") {
+            } else if (chal.id === "spacebar" || chal.id.includes("cps")) {
               wrs[chal.id] = `${topScore.toFixed(2)} CPS`;
             } else if (chal.id === "visual-memory") {
-              wrs[chal.id] = `Level ${topScore}`; // 비주얼 메모리 단위!
+              wrs[chal.id] = currentLang === "ko" ? `레벨 ${topScore}` : `Level ${topScore}`;
             }
           }
-        } catch (error) {
-          console.log(`[안내] ${chal.id} 종목의 1등을 찾으려면 Firebase 콘솔에서 '인덱스(Index)'를 생성해야 할 수도 있습니다.`);
-        }
+        } catch (error) {}
       }
       setGlobalWrs(wrs);
     };
@@ -114,106 +112,163 @@ export default function HomePage() {
       fetchGlobalRecords(); 
     }, 300); 
 
-  }, [selectedCategory]);
+  }, [currentLang]);
 
-  const filteredChallenges = challenges.filter(c => c.category === selectedCategory);
+  const filteredChallenges = challenges.filter(chal => {
+    const matchesCategory = activeCategory === "ALL" || chal.category === activeCategory;
+    const matchesSearch = chal.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          chal.desc[currentLang].toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300 relative" style={{ backgroundColor: "var(--c-bg)", color: "var(--c-text1)", backgroundImage: "radial-gradient(var(--c-dot) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         html, body { font-family: 'Inter', sans-serif !important; -webkit-font-smoothing: antialiased !important; }
+        
         :root, [data-theme="light"] { --c-bg: #fcfcfc; --c-border: rgba(0,0,0,0.08); --c-dot: rgba(0,0,0,0.06); --c-text1: #111; --c-text2: #555; --c-text3: #999; --c-accent: #FF5500; }
         .dark, [data-theme="dark"] { --c-bg: #0a0a0a; --c-border: rgba(255,255,255,0.08); --c-dot: rgba(255,255,255,0.04); --c-text1: #f3f3f3; --c-text2: #aaa; --c-text3: #666; --c-accent: #FF5500; }
+        
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; opacity: 0; }
+
+        ::-webkit-scrollbar { width: 14px; height: 14px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: rgba(150, 150, 150, 0.3); border-radius: 9999px; border: 4px solid var(--c-bg); background-clip: padding-box; }
+        ::-webkit-scrollbar-thumb:hover { background-color: rgba(150, 150, 150, 0.5); }
       `}} />
 
       <Header />
 
-      <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-12 flex flex-col justify-center pt-16 pb-32">
-        <div key={selectedCategory || "home"}>
+      <div className="flex-1 w-full max-w-[1700px] mx-auto px-4 sm:px-8 pt-24 sm:pt-28 pb-32 relative z-10 flex items-start justify-center gap-6 lg:gap-10">
+        
+        <aside className="hidden xl:flex w-[300px] shrink-0 flex-col animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+          <div className="sticky top-28 w-full h-[600px] rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] flex flex-col items-center justify-center text-[var(--c-text3)] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-colors hover:border-[var(--c-accent)]/30 overflow-hidden cursor-pointer">
+            <span className="text-xs font-bold tracking-widest uppercase opacity-40 mb-1">Advertisement</span>
+            <span className="font-mono text-[10px] opacity-30">300 x 600</span>
+          </div>
+        </aside>
+
+        <main className="w-full max-w-5xl flex flex-col items-center">
           
-          <div className="mb-10 sm:mb-12 px-2 animate-fade-in-up" style={{ animationDelay: '0ms' }}>
-            {selectedCategory && (
-              <button onClick={() => setSelectedCategory(null)} className="group flex items-center gap-2 text-[var(--c-text3)] hover:text-[var(--c-text1)] transition-colors mb-6 sm:mb-8 focus:outline-none w-fit">
-                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 group-hover:bg-[var(--c-text1)] group-hover:text-[var(--c-bg)] transition-all duration-300">
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-xs font-bold tracking-widest uppercase mt-px">Categories</span>
-              </button>
-            )}
-            <h1 className="text-[2.5rem] sm:text-[3.25rem] font-bold tracking-[-0.04em] leading-tight mb-3" style={{ color: "var(--c-text1)" }}>
-              {selectedCategory ? `${selectedCategory}.` : "Select Category."}
-            </h1>
-            <p className="text-[15px] font-medium tracking-wide font-sans" style={{ color: "var(--c-text3)" }}>
-              {selectedCategory ? "Select your challenge" : "Benchmark your physical limits"}
-            </p>
+          <div className="w-full max-w-2xl flex flex-col items-center mb-8 sm:mb-16 animate-fade-in-up">
+            <div className="relative w-full mb-5 sm:mb-6 group">
+              <div className="absolute inset-y-0 left-0 pl-4 sm:pl-5 flex items-center pointer-events-none text-[var(--c-text3)] group-focus-within:text-[var(--c-accent)] transition-colors duration-300">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={currentLang === "ko" ? "검색..." : "Search..."}
+                className="w-full pl-11 sm:pl-14 pr-4 sm:pr-6 py-3 sm:py-4 rounded-xl sm:rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] focus:border-[var(--c-accent)] outline-none transition-all duration-300 text-sm sm:text-base font-medium text-[var(--c-text1)] placeholder-[var(--c-text3)] shadow-sm hover:shadow-md focus:shadow-[0_4px_20px_rgba(255,85,0,0.1)]"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+              {["ALL", "CLICK", "TYPING", "MEMORY"].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-[10px] sm:text-xs font-bold tracking-widest transition-all duration-300 focus:outline-none ${
+                    activeCategory === cat 
+                      ? "bg-[var(--c-text1)] text-[var(--c-bg)] shadow-md scale-105" 
+                      : "bg-black/5 dark:bg-white/5 text-[var(--c-text3)] hover:bg-black/10 dark:hover:bg-white/10 hover:text-[var(--c-text1)]"
+                  }`}
+                >
+                  {categoryLabels[cat][currentLang]}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {!selectedCategory && categories.map((cat, idx) => (
-              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className="group relative flex items-center justify-between w-full py-6 px-5 sm:px-8 rounded-2xl border border-transparent hover:bg-white dark:hover:bg-[#141414] hover:border-black/5 dark:hover:border-white/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.02)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up text-left overflow-hidden" style={{ animationDelay: `${(idx + 1) * 70}ms` }}>
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--c-accent)] origin-center scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100" />
-                <div className="flex items-center gap-5 sm:gap-8 transition-transform duration-300 ease-out group-hover:translate-x-2 shrink-0">
-                  <span className="font-mono text-sm sm:text-base font-semibold transition-colors duration-300 group-hover:text-[var(--c-accent)]" style={{ color: "var(--c-text3)" }}>{String(idx + 1).padStart(2, '0')}</span>
-                  <div className="flex flex-col items-start gap-1">
-                    <h2 className="text-xl sm:text-3xl font-bold tracking-[-0.02em] uppercase transition-colors duration-300" style={{ color: "var(--c-text1)" }}>{cat.name}</h2>
-                    <p className="text-xs sm:text-[13px] font-medium tracking-wide" style={{ color: "var(--c-text3)" }}>{cat.desc}</p>
-                  </div>
-                </div>
-                <div className="relative z-10 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-transparent bg-transparent group-hover:bg-[#f5f5f5] dark:group-hover:bg-[#222] transition-colors duration-300 overflow-hidden shrink-0">
-                  <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 opacity-0 -translate-x-5 transition-all duration-300 ease-out group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--c-text1)" }} />
-                </div>
-              </button>
-            ))}
+          {/* 🚀 핵심 수정 구역: 모바일은 flex-col(리스트), PC는 grid(바둑판)로 완벽 분리! */}
+          <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 w-full">
+            {filteredChallenges.length > 0 ? (
+              filteredChallenges.map((chal, idx) => {
+                const Icon = chal.icon;
+                return (
+                  <button 
+                    key={chal.id} 
+                    onClick={() => router.push(`/${chal.id}`)} 
+                    // 모바일: flex-row (가로 리스트), 패딩 작게 / PC: flex-col (세로 카드), 패딩 크게
+                    className="group relative flex flex-row sm:flex-col items-center sm:items-stretch p-4 sm:p-8 sm:pt-10 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] hover:border-[var(--c-accent)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(255,85,0,0.06)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up overflow-hidden"
+                    style={{ animationDelay: `${idx * 40}ms` }}
+                  >
+                    
+                    {/* 아이콘 (모바일: 좌측 정렬, PC: 중앙 상단 정렬) */}
+                    <div className="text-[var(--c-text3)] opacity-60 group-hover:text-[var(--c-accent)] group-hover:opacity-100 sm:group-hover:-translate-y-1 transition-all duration-300 shrink-0 mr-4 sm:mr-0 sm:mb-5">
+                      <Icon className="w-8 h-8 sm:w-14 sm:h-14" strokeWidth={1.5} />
+                    </div>
 
-            {selectedCategory && filteredChallenges.map((chal, idx) => (
-              <button key={chal.id} onClick={() => router.push(`/${chal.id}`)} className="group relative flex items-center justify-between w-full py-4 px-4 sm:px-6 rounded-2xl border border-transparent hover:bg-white dark:hover:bg-[#141414] hover:border-black/5 dark:hover:border-white/5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.02)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up text-left overflow-hidden" style={{ animationDelay: `${(idx + 1) * 70}ms` }}>
-                <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--c-accent)] origin-center scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100" />
-                <div className="flex items-center gap-4 sm:gap-6 transition-transform duration-300 ease-out group-hover:translate-x-2 shrink-0">
-                  <span className="font-mono text-xs sm:text-sm font-semibold transition-colors duration-300 group-hover:text-[var(--c-accent)]" style={{ color: "var(--c-text3)" }}>{String(idx + 1).padStart(2, '0')}</span>
-                  <h2 className="text-lg sm:text-2xl font-semibold tracking-[-0.02em] uppercase transition-colors duration-300" style={{ color: "var(--c-text1)" }}>{chal.name}</h2>
-                </div>
+                    {/* 텍스트 (모바일: 좌측 정렬, PC: 중앙 정렬) */}
+                    <div className="flex flex-col items-start sm:items-center text-left sm:text-center flex-1 w-full min-w-0">
+                      <h2 className="text-[15px] sm:text-xl font-bold tracking-tight text-[var(--c-text1)] mb-0.5 sm:mb-3 group-hover:text-[var(--c-accent)] transition-colors truncate w-full">
+                        {chal.name}
+                      </h2>
+                      {/* 모바일에서는 텍스트 한 줄(truncate)로 잘라서 엄청 깔끔하게 만듦 */}
+                      <p className="text-[11px] sm:text-sm font-medium text-[var(--c-text3)] leading-snug sm:leading-relaxed truncate w-full sm:whitespace-normal sm:break-keep">
+                        {chal.desc[currentLang]}
+                      </p>
+                    </div>
 
-                <div className="flex items-center gap-4 sm:gap-5 transition-transform duration-300 ease-out group-hover:-translate-x-1">
-                  <div className="hidden sm:flex items-center gap-4 mr-2 opacity-80 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="flex flex-col items-end gap-1.5">
-                      
-                      {chal.type === "GUINNESS" && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-text3)]/10 text-[var(--c-text3)]">GUINNESS</span>
-                          <span className="font-mono text-[12px] font-semibold text-[var(--c-text2)] tracking-tight">{chal.wr}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-2">
-                        <span className="text-[7px] px-1 py-[1.5px] rounded-[3px] font-bold tracking-widest leading-none bg-[var(--c-accent)]/10 text-[var(--c-accent)]">LABGG.PRO</span>
-                        <span className="font-mono text-[12px] font-semibold text-[var(--c-text1)] tracking-tight">
-                          {globalWrs[chal.id] ? globalWrs[chal.id] : (chal.type === "LABGG.PRO" ? chal.wr : "--")}
+                    {/* 🚀 PC 버전 하단 스탯 (모바일에서는 숨김) */}
+                    <div className="hidden sm:flex w-full items-center justify-between pt-4 mt-auto border-t border-[var(--c-border)] opacity-80 group-hover:opacity-100 transition-opacity">
+                      <div className="flex flex-col items-start w-1/2">
+                        <span className="text-[9px] font-bold tracking-widest text-[var(--c-text3)] uppercase truncate w-full">
+                          {chal.type === "GUINNESS" ? (currentLang === "ko" ? "기네스" : "Guinness") : (currentLang === "ko" ? "세계기록" : "World")}
+                        </span>
+                        <span className="text-xs font-mono font-semibold text-[var(--c-text2)] truncate w-full">
+                          {globalWrs[chal.id] ? globalWrs[chal.id] : chal.wr}
                         </span>
                       </div>
-                      
+                      <div className="flex flex-col items-end w-1/2">
+                        <span className="text-[9px] font-bold tracking-widest text-[var(--c-accent)] uppercase">
+                          {currentLang === "ko" ? "최고기록" : "PB"}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-[var(--c-text1)]">
+                          {userPbs[chal.id] || "--"}
+                        </span>
+                      </div>
                     </div>
-                    
-                    <div className="w-[1px] h-8 bg-[var(--c-border)] transition-colors duration-300 group-hover:bg-black/10 dark:group-hover:bg-white/10" />
 
-                    <div className="flex flex-col items-start w-[50px] justify-center">
-                      <span className="text-[9px] font-bold tracking-[0.1em] text-[var(--c-text3)] mb-[2px]">PB</span>
-                      <span className="font-mono text-[13px] font-semibold text-[var(--c-accent)] tracking-tight">
+                    {/* 🚀 모바일 전용 우측 스탯 (PC에서는 숨김) */}
+                    {/* 모바일에서는 깔끔하게 PB(최고기록)만 보여줘서 복잡함을 없앰 */}
+                    <div className="flex sm:hidden flex-col items-end justify-center shrink-0 ml-3 pl-4 border-l border-[var(--c-border)] min-w-[50px]">
+                      <span className="text-[8px] font-bold tracking-widest text-[var(--c-accent)] uppercase">
+                        {currentLang === "ko" ? "PB" : "PB"}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-[var(--c-text1)] mt-0.5">
                         {userPbs[chal.id] || "--"}
                       </span>
                     </div>
-                  </div>
-                  <div className="relative z-10 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border border-transparent bg-transparent group-hover:bg-[#f5f5f5] dark:group-hover:bg-[#222] transition-colors duration-300 overflow-hidden shrink-0">
-                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 opacity-0 -translate-x-5 transition-all duration-300 ease-out group-hover:opacity-100 group-hover:translate-x-0" style={{ color: "var(--c-text1)" }} />
-                  </div>
-                </div>
-              </button>
-            ))}
+
+                  </button>
+                )
+              })
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center py-10 sm:py-20 text-[var(--c-text3)] animate-fade-in-up">
+                <Search className="w-10 h-10 sm:w-12 sm:h-12 mb-4 opacity-20" />
+                <p className="text-sm sm:text-lg font-medium">
+                  {currentLang === "ko" ? "검색 결과가 없습니다." : "No results found."}
+                </p>
+                <button 
+                  onClick={() => { setSearchTerm(""); setActiveCategory("ALL"); }}
+                  className="mt-3 sm:mt-4 text-xs sm:text-sm font-bold text-[var(--c-accent)] hover:underline underline-offset-4 transition-all"
+                >
+                  {currentLang === "ko" ? "초기화" : "Clear filters"}
+                </button>
+              </div>
+            )}
           </div>
-        </div>
-      </main>
+
+        </main>
+
+        <div className="hidden xl:block w-[300px] shrink-0 pointer-events-none" />
+
+      </div>
+
       <div className="fixed bottom-0 inset-x-0 z-[9000] bg-[var(--c-bg)] transition-colors duration-300">
         <Footer />
       </div>
