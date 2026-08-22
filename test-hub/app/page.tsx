@@ -11,67 +11,76 @@ import { db, auth } from "./lib/firebase";
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { useLanguage } from "./components/providers";
 
-// 🚀 1. 좌측 사이드바용 300x600 대형 광고 컴포넌트
 const SidebarAd = () => {
   const adPushed = useRef(false);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
     if (!adPushed.current) {
-      try {
-        // @ts-ignore
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        adPushed.current = true;
-      } catch (err) {
-        console.error("AdSense Error:", err);
-      }
+      timeoutId = setTimeout(() => {
+        try {
+          // @ts-ignore
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          adPushed.current = true;
+        } catch (err) {
+          console.error("AdSense Error:", err);
+        }
+      }, 150);
     }
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (
-    <div className="sticky top-28 w-[300px] h-[600px] rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-colors hover:border-[var(--c-accent)]/30 overflow-hidden flex flex-col items-center justify-center">
+    <div className="sticky top-28 w-[300px] h-[600px] rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-colors hover:border-[var(--c-accent)]/30 overflow-hidden flex flex-col items-center justify-center isolate">
       <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--c-text3)] pointer-events-none z-0">
         <span className="text-xs font-bold tracking-widest uppercase opacity-40 mb-1">Advertisement</span>
         <span className="font-mono text-[10px] opacity-30">300 x 600</span>
       </div>
       <ins
-        className="adsbygoogle relative z-10"
-        // 👇 구글 봇이 헷갈리지 않게 300x600 쐐기 박기!
-        style={{ display: "inline-block", width: "300px", height: "600px", background: "transparent" }}
+        className="adsbygoogle absolute inset-0 z-10 rounded-2xl"
+        style={{ display: "block", background: "transparent" }}
         data-ad-client="ca-pub-9543272564767938"
-        data-ad-slot="6841405748" // ✅ 첫 번째로 만드신 사이드바용 ID
+        data-ad-slot="6841405748" 
       />
     </div>
   );
 };
 
-// 🚀 2. 게임 목록 사이에 들어갈 반응형(auto) 인피드 광고 컴포넌트
 const InFeedAdCard = () => {
   const adPushed = useRef(false);
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     if (!adPushed.current) {
-      try {
-        // @ts-ignore
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        adPushed.current = true;
-      } catch (err) {
-        console.error("AdSense Error:", err);
-      }
+      timeoutId = setTimeout(() => {
+        try {
+          // @ts-ignore
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          adPushed.current = true;
+        } catch (err) {
+          console.error("AdSense Error:", err);
+        }
+      }, 150);
     }
+
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (
-    <div className="group relative flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] transition-all duration-300 ease-out animate-fade-in-up overflow-hidden w-full h-full min-h-[200px] sm:min-h-[250px]">
+    <div className="group relative flex flex-col items-center justify-center rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] transition-all duration-300 ease-out animate-fade-in-up overflow-hidden w-full h-full min-h-[100px] sm:min-h-[250px] isolate">
       <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--c-text3)] pointer-events-none z-0">
         <span className="text-[10px] sm:text-xs font-bold tracking-widest uppercase opacity-40 mb-1">Advertisement</span>
         <span className="font-mono text-[9px] opacity-30">In-Feed</span>
       </div>
       <ins
-        className="adsbygoogle relative z-10 w-full h-full"
+        className="adsbygoogle absolute inset-0 z-10 rounded-2xl w-full h-full"
         style={{ display: "block", background: "transparent" }}
         data-ad-client="ca-pub-9543272564767938"
-        data-ad-slot="7676859748" // ✅ 방금 가져오신 찐 반응형 ID 장착!!!
-        data-ad-format="auto"     // ✅ 주신 코드 그대로 auto 적용
+        data-ad-slot="7676859748"
+        data-ad-format="auto"
         data-full-width-responsive="true"
       />
     </div>
@@ -214,8 +223,16 @@ export default function HomePage() {
         ::-webkit-scrollbar-thumb { background-color: rgba(150, 150, 150, 0.3); border-radius: 9999px; border: 4px solid var(--c-bg); background-clip: padding-box; }
         ::-webkit-scrollbar-thumb:hover { background-color: rgba(150, 150, 150, 0.5); }
 
-        ins.adsbygoogle { background: transparent !important; }
-        ins.adsbygoogle iframe { background: transparent !important; }
+        ins.adsbygoogle, 
+        ins.adsbygoogle > div, 
+        ins.adsbygoogle iframe { 
+          background: transparent !important; 
+          border-radius: 16px !important; 
+          width: 100% !important;
+          height: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
         ins.adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
       `}} />
 
@@ -269,18 +286,18 @@ export default function HomePage() {
                   <button 
                     key={chal.id} 
                     onClick={() => router.push(`/${chal.id}`)} 
-                    className="group relative flex flex-row sm:flex-col items-center sm:items-stretch p-4 sm:p-8 sm:pt-10 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] hover:border-[var(--c-accent)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(255,85,0,0.06)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up overflow-hidden h-full"
+                    className="group relative flex flex-row sm:flex-col items-center sm:justify-center p-5 sm:p-8 sm:pt-10 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] hover:border-[var(--c-accent)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(255,85,0,0.06)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up overflow-hidden h-full"
                     style={{ animationDelay: `${idx * 40}ms` }}
                   >
-                    <div className="text-[var(--c-text3)] opacity-60 group-hover:text-[var(--c-accent)] group-hover:opacity-100 sm:group-hover:-translate-y-1 transition-all duration-300 shrink-0 mr-4 sm:mr-0 sm:mb-5">
+                    <div className="flex shrink-0 items-center justify-center text-[var(--c-text3)] opacity-80 sm:opacity-60 group-hover:text-[var(--c-accent)] sm:group-hover:-translate-y-1 transition-all duration-300 mr-4 sm:mr-0 sm:mb-5">
                       <Icon className="w-8 h-8 sm:w-14 sm:h-14" strokeWidth={1.5} />
                     </div>
 
                     <div className="flex flex-col items-start sm:items-center text-left sm:text-center flex-1 w-full min-w-0">
-                      <h2 className="text-[15px] sm:text-xl font-bold tracking-tight text-[var(--c-text1)] mb-0.5 sm:mb-3 group-hover:text-[var(--c-accent)] transition-colors truncate w-full">
+                      <h2 className="text-[15px] sm:text-xl font-bold tracking-tight text-[var(--c-text1)] sm:mb-3 group-hover:text-[var(--c-accent)] transition-colors truncate w-full">
                         {chal.name}
                       </h2>
-                      <p className="text-[11px] sm:text-sm font-medium text-[var(--c-text3)] leading-snug sm:leading-relaxed truncate w-full sm:whitespace-normal sm:break-keep">
+                      <p className="hidden sm:block text-[11px] sm:text-sm font-medium text-[var(--c-text3)] leading-snug sm:leading-relaxed truncate w-full sm:whitespace-normal sm:break-keep">
                         {chal.desc[currentLang]}
                       </p>
                     </div>
@@ -304,11 +321,11 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex sm:hidden flex-col items-end justify-center shrink-0 ml-3 pl-4 border-l border-[var(--c-border)] min-w-[50px] mt-auto">
-                      <span className="text-[8px] font-bold tracking-widest text-[var(--c-accent)] uppercase">
+                    <div className="flex sm:hidden flex-col items-end justify-center shrink-0 ml-4">
+                      <span className="text-[9px] font-bold tracking-widest text-[var(--c-text3)] uppercase">
                         {currentLang === "ko" ? "PB" : "PB"}
                       </span>
-                      <span className="text-xs font-mono font-bold text-[var(--c-text1)] mt-0.5">
+                      <span className="text-[13px] font-mono font-bold text-[var(--c-text1)] mt-0.5">
                         {userPbs[chal.id] || "--"}
                       </span>
                     </div>
@@ -317,9 +334,19 @@ export default function HomePage() {
 
                 acc.push(Card);
 
-                // 🚀 인피드 광고 위치 유지 (2번째 줄 마지막 칸)
-                if (idx === 4 && activeCategory === "ALL") {
-                  acc.push(<InFeedAdCard key="in-feed-ad" />);
+                // 🚀 모든 탭과 검색 결과에서 광고가 나오도록 로직 변경 완료!!
+                let showAd = false;
+                if (activeCategory === "ALL" && searchTerm === "") {
+                  // ALL 탭이고 검색 안할 때는 5번째 게임(idx === 4) 뒤에 표시
+                  if (idx === 4) showAd = true; 
+                } else {
+                  // 다른 탭이거나 검색 중일 때는 무조건 맨 마지막 아이템 뒤에 찰싹 붙어서 표시!
+                  if (idx === filteredChallenges.length - 1) showAd = true;
+                }
+
+                if (showAd) {
+                  // 🚀 key 값에 카테고리와 검색어를 넣어서 탭을 바꿀 때마다 광고도 새롭게 리프레시!
+                  acc.push(<InFeedAdCard key={`ad-${activeCategory}-${searchTerm}`} />);
                 }
 
                 return acc;
