@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { ArrowDownAZ, ArrowDownZA, Keyboard, MousePointerClick, Zap, LayoutGrid, Binary, Grip, Search } from "lucide-react";
@@ -9,6 +10,36 @@ import { ArrowDownAZ, ArrowDownZA, Keyboard, MousePointerClick, Zap, LayoutGrid,
 import { db, auth } from "./lib/firebase";
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { useLanguage } from "./components/providers";
+
+// 🚀 눈뽕 방지용 프리미엄 AdBanner 컴포넌트
+const AdBanner = () => {
+  useEffect(() => {
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (err) {
+      console.error("AdSense Error:", err);
+    }
+  }, []);
+
+  return (
+    <div className="relative w-full h-full flex flex-col items-center justify-center">
+      {/* 🚀 광고가 안 뜰 때 뒤에 비쳐 보이는 시크한 플레이스홀더 */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--c-text3)] pointer-events-none">
+        <span className="text-xs font-bold tracking-widest uppercase opacity-40 mb-1">Advertisement</span>
+        <span className="font-mono text-[10px] opacity-30">300 x 600</span>
+      </div>
+
+      {/* 🚀 실제 구글 애드센스 영역 (CSS로 강제 투명화) */}
+      <ins
+        className="adsbygoogle relative z-10"
+        style={{ display: "block", width: "100%", height: "100%", background: "transparent" }}
+        data-ad-client="ca-pub-9543272564767938" // 유저님 애드센스 ID
+        data-ad-slot="1234567890" // ⚠️ 나중에 찐 슬롯 ID로 바꾸세요!
+      />
+    </div>
+  );
+};
 
 const challenges = [
   { id: "alphabet", category: "TYPING", name: "Alphabet A-Z", desc: { en: "Type A to Z as fast as possible.", ko: "A부터 Z까지 최대한 빨리 누르세요." }, icon: ArrowDownAZ, wr: "3.25 SEC", type: "GUINNESS", dbField: "alphabetAZ", order: "asc" }, 
@@ -70,7 +101,7 @@ export default function HomePage() {
             if (data.alphabetAZ || data.alphabet) pbs["alphabet"] = `${(data.alphabetAZ || data.alphabet).toFixed(3)}s`;
             if (data.alphabetZA) pbs["alphabet-za"] = `${data.alphabetZA.toFixed(3)}s`;
             if (data.spacebar) pbs["spacebar"] = `${data.spacebar.toFixed(2)} CPS`;
-            if (data.cps60s) pbs["cps-60s"] = `${data.cps60s.toFixed(2)} CPS`;
+            if (data.cps60s) pbs["cps60s"] = `${data.cps60s.toFixed(2)} CPS`;
             if (data.visualMemory) pbs["visual-memory"] = `Level ${data.visualMemory}`;
           }
         } catch (error) {}
@@ -123,6 +154,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-300 relative" style={{ backgroundColor: "var(--c-bg)", color: "var(--c-text1)", backgroundImage: "radial-gradient(var(--c-dot) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
+      
+      <Script 
+        id="adsbygoogle-init"
+        strategy="lazyOnload"
+        crossOrigin="anonymous"
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9543272564767938"
+      />
+
       <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         html, body { font-family: 'Inter', sans-serif !important; -webkit-font-smoothing: antialiased !important; }
@@ -137,16 +176,21 @@ export default function HomePage() {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background-color: rgba(150, 150, 150, 0.3); border-radius: 9999px; border: 4px solid var(--c-bg); background-clip: padding-box; }
         ::-webkit-scrollbar-thumb:hover { background-color: rgba(150, 150, 150, 0.5); }
+
+        /* 🚀 핵심: 구글 애드센스 빈 박스일 때 흰색 배경 뜨는 현상 완전 차단 */
+        ins.adsbygoogle { background-color: transparent !important; }
+        ins.adsbygoogle iframe { background-color: transparent !important; }
       `}} />
 
       <Header />
 
       <div className="flex-1 w-full max-w-[1700px] mx-auto px-4 sm:px-8 pt-24 sm:pt-28 pb-32 relative z-10 flex items-start justify-center gap-6 lg:gap-10">
         
+        {/* 왼쪽 광고 영역 */}
         <aside className="hidden xl:flex w-[300px] shrink-0 flex-col animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-          <div className="sticky top-28 w-full h-[600px] rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] flex flex-col items-center justify-center text-[var(--c-text3)] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-colors hover:border-[var(--c-accent)]/30 overflow-hidden cursor-pointer">
-            <span className="text-xs font-bold tracking-widest uppercase opacity-40 mb-1">Advertisement</span>
-            <span className="font-mono text-[10px] opacity-30">300 x 600</span>
+          <div className="sticky top-28 w-[300px] h-[600px] rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-colors hover:border-[var(--c-accent)]/30 overflow-hidden cursor-pointer">
+            {/* 🚀 우리가 만든 컴포넌트 장착 */}
+            <AdBanner />
           </div>
         </aside>
 
@@ -183,7 +227,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 🚀 핵심 수정 구역: 모바일은 flex-col(리스트), PC는 grid(바둑판)로 완벽 분리! */}
           <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 w-full">
             {filteredChallenges.length > 0 ? (
               filteredChallenges.map((chal, idx) => {
@@ -192,28 +235,23 @@ export default function HomePage() {
                   <button 
                     key={chal.id} 
                     onClick={() => router.push(`/${chal.id}`)} 
-                    // 모바일: flex-row (가로 리스트), 패딩 작게 / PC: flex-col (세로 카드), 패딩 크게
                     className="group relative flex flex-row sm:flex-col items-center sm:items-stretch p-4 sm:p-8 sm:pt-10 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] hover:border-[var(--c-accent)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(255,85,0,0.06)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up overflow-hidden"
                     style={{ animationDelay: `${idx * 40}ms` }}
                   >
                     
-                    {/* 아이콘 (모바일: 좌측 정렬, PC: 중앙 상단 정렬) */}
                     <div className="text-[var(--c-text3)] opacity-60 group-hover:text-[var(--c-accent)] group-hover:opacity-100 sm:group-hover:-translate-y-1 transition-all duration-300 shrink-0 mr-4 sm:mr-0 sm:mb-5">
                       <Icon className="w-8 h-8 sm:w-14 sm:h-14" strokeWidth={1.5} />
                     </div>
 
-                    {/* 텍스트 (모바일: 좌측 정렬, PC: 중앙 정렬) */}
                     <div className="flex flex-col items-start sm:items-center text-left sm:text-center flex-1 w-full min-w-0">
                       <h2 className="text-[15px] sm:text-xl font-bold tracking-tight text-[var(--c-text1)] mb-0.5 sm:mb-3 group-hover:text-[var(--c-accent)] transition-colors truncate w-full">
                         {chal.name}
                       </h2>
-                      {/* 모바일에서는 텍스트 한 줄(truncate)로 잘라서 엄청 깔끔하게 만듦 */}
                       <p className="text-[11px] sm:text-sm font-medium text-[var(--c-text3)] leading-snug sm:leading-relaxed truncate w-full sm:whitespace-normal sm:break-keep">
                         {chal.desc[currentLang]}
                       </p>
                     </div>
 
-                    {/* 🚀 PC 버전 하단 스탯 (모바일에서는 숨김) */}
                     <div className="hidden sm:flex w-full items-center justify-between pt-4 mt-auto border-t border-[var(--c-border)] opacity-80 group-hover:opacity-100 transition-opacity">
                       <div className="flex flex-col items-start w-1/2">
                         <span className="text-[9px] font-bold tracking-widest text-[var(--c-text3)] uppercase truncate w-full">
@@ -233,8 +271,6 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* 🚀 모바일 전용 우측 스탯 (PC에서는 숨김) */}
-                    {/* 모바일에서는 깔끔하게 PB(최고기록)만 보여줘서 복잡함을 없앰 */}
                     <div className="flex sm:hidden flex-col items-end justify-center shrink-0 ml-3 pl-4 border-l border-[var(--c-border)] min-w-[50px]">
                       <span className="text-[8px] font-bold tracking-widest text-[var(--c-accent)] uppercase">
                         {currentLang === "ko" ? "PB" : "PB"}
