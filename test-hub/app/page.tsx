@@ -286,32 +286,38 @@ export default function HomePage() {
                   <button 
                     key={chal.id} 
                     onClick={() => router.push(`/${chal.id}`)} 
-                    className="group relative flex flex-row sm:flex-col items-center sm:justify-center p-5 sm:p-8 sm:pt-10 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] hover:border-[var(--c-accent)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(255,85,0,0.06)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up overflow-hidden h-full"
+                    className="group relative flex flex-row sm:flex-col items-center p-5 sm:p-8 rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] hover:border-[var(--c-accent)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-[0_8px_30px_rgba(255,85,0,0.06)] transition-all duration-300 ease-out focus:outline-none animate-fade-in-up overflow-hidden h-full"
                     style={{ animationDelay: `${idx * 40}ms` }}
                   >
-                    <div className="flex shrink-0 items-center justify-center text-[var(--c-text3)] opacity-80 sm:opacity-60 group-hover:text-[var(--c-accent)] sm:group-hover:-translate-y-1 transition-all duration-300 mr-4 sm:mr-0 sm:mb-5">
-                      <Icon className="w-8 h-8 sm:w-14 sm:h-14" strokeWidth={1.5} />
+                    
+                    <div className="flex flex-row sm:flex-col items-center sm:justify-center flex-1 w-full min-w-0">
+                      <div className="flex shrink-0 items-center justify-center text-[var(--c-text3)] opacity-80 sm:opacity-60 group-hover:text-[var(--c-accent)] sm:group-hover:-translate-y-1 transition-all duration-300 mr-4 sm:mr-0 sm:mb-5">
+                        <Icon className="w-8 h-8 sm:w-14 sm:h-14" strokeWidth={1.5} />
+                      </div>
+
+                      <div className="flex flex-col items-start sm:items-center text-left sm:text-center flex-1 sm:flex-none w-full min-w-0">
+                        <h2 className="text-[15px] sm:text-xl font-bold tracking-tight text-[var(--c-text1)] sm:mb-3 group-hover:text-[var(--c-accent)] transition-colors truncate w-full">
+                          {chal.name}
+                        </h2>
+                        <p className="hidden sm:block text-[11px] sm:text-sm font-medium text-[var(--c-text3)] leading-snug sm:leading-relaxed truncate w-full sm:whitespace-normal sm:break-keep">
+                          {chal.desc[currentLang]}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col items-start sm:items-center text-left sm:text-center flex-1 w-full min-w-0">
-                      <h2 className="text-[15px] sm:text-xl font-bold tracking-tight text-[var(--c-text1)] sm:mb-3 group-hover:text-[var(--c-accent)] transition-colors truncate w-full">
-                        {chal.name}
-                      </h2>
-                      <p className="hidden sm:block text-[11px] sm:text-sm font-medium text-[var(--c-text3)] leading-snug sm:leading-relaxed truncate w-full sm:whitespace-normal sm:break-keep">
-                        {chal.desc[currentLang]}
-                      </p>
-                    </div>
-
-                    <div className="hidden sm:flex w-full items-center justify-between pt-4 mt-auto border-t border-[var(--c-border)] opacity-80 group-hover:opacity-100 transition-opacity">
-                      <div className="flex flex-col items-start w-1/2">
-                        <span className="text-[9px] font-bold tracking-widest text-[var(--c-text3)] uppercase truncate w-full">
+                    <div className="hidden sm:flex w-full items-center justify-between pt-5 mt-6 border-t border-[var(--c-border)] opacity-80 group-hover:opacity-100 transition-opacity">
+                      {/* 🚀 핵심! text-left를 강제로 먹이고, w-full을 제거하여 불필요한 중앙 정렬 상속을 막았습니다. */}
+                      <div className="flex flex-col items-start w-1/2 text-left">
+                        <span className="text-[9px] font-bold tracking-widest text-[var(--c-text3)] uppercase">
                           {chal.type === "GUINNESS" ? (currentLang === "ko" ? "기네스" : "Guinness") : (currentLang === "ko" ? "세계기록" : "World")}
                         </span>
-                        <span className="text-xs font-mono font-semibold text-[var(--c-text2)] truncate w-full">
+                        <span className="text-xs font-mono font-semibold text-[var(--c-text2)]">
                           {globalWrs[chal.id] ? globalWrs[chal.id] : chal.wr}
                         </span>
                       </div>
-                      <div className="flex flex-col items-end w-1/2">
+                      
+                      {/* 🚀 여기도 완벽하게 text-right가 먹히도록 세팅! */}
+                      <div className="flex flex-col items-end w-1/2 text-right">
                         <span className="text-[9px] font-bold tracking-widest text-[var(--c-accent)] uppercase">
                           {currentLang === "ko" ? "최고기록" : "PB"}
                         </span>
@@ -321,7 +327,7 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex sm:hidden flex-col items-end justify-center shrink-0 ml-4">
+                    <div className="flex sm:hidden flex-col items-end justify-center shrink-0 ml-4 text-right">
                       <span className="text-[9px] font-bold tracking-widest text-[var(--c-text3)] uppercase">
                         {currentLang === "ko" ? "PB" : "PB"}
                       </span>
@@ -334,18 +340,14 @@ export default function HomePage() {
 
                 acc.push(Card);
 
-                // 🚀 모든 탭과 검색 결과에서 광고가 나오도록 로직 변경 완료!!
                 let showAd = false;
                 if (activeCategory === "ALL" && searchTerm === "") {
-                  // ALL 탭이고 검색 안할 때는 5번째 게임(idx === 4) 뒤에 표시
                   if (idx === 4) showAd = true; 
                 } else {
-                  // 다른 탭이거나 검색 중일 때는 무조건 맨 마지막 아이템 뒤에 찰싹 붙어서 표시!
                   if (idx === filteredChallenges.length - 1) showAd = true;
                 }
 
                 if (showAd) {
-                  // 🚀 key 값에 카테고리와 검색어를 넣어서 탭을 바꿀 때마다 광고도 새롭게 리프레시!
                   acc.push(<InFeedAdCard key={`ad-${activeCategory}-${searchTerm}`} />);
                 }
 
