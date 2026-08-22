@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import Header from "./components/Header";
@@ -11,31 +11,35 @@ import { db, auth } from "./lib/firebase";
 import { doc, getDoc, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { useLanguage } from "./components/providers";
 
-// 🚀 눈뽕 방지용 프리미엄 AdBanner 컴포넌트
+// 🚀 눈뽕 방지 + 찐 애드센스 슬롯 장착 완료!
 const AdBanner = () => {
+  const adPushed = useRef(false);
+
   useEffect(() => {
-    try {
-      // @ts-ignore
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (err) {
-      console.error("AdSense Error:", err);
+    if (!adPushed.current) {
+      try {
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+        adPushed.current = true;
+      } catch (err) {
+        console.error("AdSense Error:", err);
+      }
     }
   }, []);
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center">
-      {/* 🚀 광고가 안 뜰 때 뒤에 비쳐 보이는 시크한 플레이스홀더 */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--c-text3)] pointer-events-none">
         <span className="text-xs font-bold tracking-widest uppercase opacity-40 mb-1">Advertisement</span>
         <span className="font-mono text-[10px] opacity-30">300 x 600</span>
       </div>
 
-      {/* 🚀 실제 구글 애드센스 영역 (CSS로 강제 투명화) */}
       <ins
         className="adsbygoogle relative z-10"
         style={{ display: "block", width: "100%", height: "100%", background: "transparent" }}
-        data-ad-client="ca-pub-9543272564767938" // 유저님 애드센스 ID
-        data-ad-slot="1234567890" // ⚠️ 나중에 찐 슬롯 ID로 바꾸세요!
+        data-ad-client="ca-pub-9543272564767938"
+        // 🚀 유저님이 따온 찐 광고 슬롯 번호 장착 완료!!
+        data-ad-slot="6841405748" 
       />
     </div>
   );
@@ -177,7 +181,6 @@ export default function HomePage() {
         ::-webkit-scrollbar-thumb { background-color: rgba(150, 150, 150, 0.3); border-radius: 9999px; border: 4px solid var(--c-bg); background-clip: padding-box; }
         ::-webkit-scrollbar-thumb:hover { background-color: rgba(150, 150, 150, 0.5); }
 
-        /* 🚀 핵심: 구글 애드센스 빈 박스일 때 흰색 배경 뜨는 현상 완전 차단 */
         ins.adsbygoogle { background-color: transparent !important; }
         ins.adsbygoogle iframe { background-color: transparent !important; }
       `}} />
@@ -186,10 +189,8 @@ export default function HomePage() {
 
       <div className="flex-1 w-full max-w-[1700px] mx-auto px-4 sm:px-8 pt-24 sm:pt-28 pb-32 relative z-10 flex items-start justify-center gap-6 lg:gap-10">
         
-        {/* 왼쪽 광고 영역 */}
         <aside className="hidden xl:flex w-[300px] shrink-0 flex-col animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <div className="sticky top-28 w-[300px] h-[600px] rounded-2xl bg-white dark:bg-[#121212] border border-[var(--c-border)] shadow-[0_8px_30px_rgb(0,0,0,0.02)] transition-colors hover:border-[var(--c-accent)]/30 overflow-hidden cursor-pointer">
-            {/* 🚀 우리가 만든 컴포넌트 장착 */}
             <AdBanner />
           </div>
         </aside>
